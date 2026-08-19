@@ -12,6 +12,19 @@ def test_normalize_tokens():
     assert normalize_tokens("Der Fuchs, sagte: „Hallo!“") == ["der", "fuchs", "sagte", "hallo"]
 
 
+def test_normalize_tokens_expands_digits():
+    # Whisper schreibt „einhundert" als „100" — beides muss gleich normalisieren
+    assert normalize_tokens("in 100 Jahren") == ["in", "einhundert", "jahren"]
+    assert normalize_tokens("in einhundert Jahren") == ["in", "einhundert", "jahren"]
+
+
+def test_fused_compounds_do_not_count_as_errors():
+    assert word_error_rate("sagte der Dachs leise", "sagte der Dachsleise") == 0.0
+    assert word_error_rate("Genau so wie heute", "genauso wie heute") == 0.0
+    # echte Abweichung bleibt ein Fehler
+    assert word_error_rate("sagte der Dachs leise", "sagte der Fuchs leise") == 0.25
+
+
 def test_wer_identical_is_zero():
     assert word_error_rate("Der kleine Fuchs.", "der kleine Fuchs") == 0.0
 

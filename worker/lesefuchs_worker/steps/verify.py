@@ -134,14 +134,39 @@ def paragraph_defects(target: str, transcript: str, duration_ms: int, settings) 
 
 
 def normalize_tokens(text: str) -> list[str]:
-    """Kleinbuchstaben, ohne Interpunktion — Basis des WER-Vergleichs."""
-    return re.findall(r"[\wäöüß]+", text.lower())
+    """Kleinbuchstaben, ohne Interpunktion; Ziffern-Tokens werden als
+    Zahlwörter expandiert („100" → „einhundert") — Whisper transkribiert
+    gesprochene Zahlen als Ziffern (inverse Normalisierung), das darf nicht
+    als Fehler zählen."""
+    from .normalize import speak_number
+
+    tokens = []
+    for tok in re.findall(r"[\wäöüß]+", text.lower()):
+        if tok.isdigit():
+            tokens.extend(speak_number(tok).lower().split())
+        else:
+            tokens.append(tok)
+    return tokens
+
+
+def split_fused_compounds(ref: list[str], hyp: list[str]) -> list[str]:
+    """Teilt Transkript-Tokens auf, die exakt zwei aufeinanderfolgende
+    Soll-Tokens zusammenschreiben („dachsleise" → „dachs leise",
+    „genauso" → „genau so") — Whisper-Schreibvarianten, keine Sprechfehler."""
+    pairs = {ref[i] + ref[i + 1]: (ref[i], ref[i + 1]) for i in range(len(ref) - 1)}
+    out: list[str] = []
+    for tok in hyp:
+        if tok in pairs:
+            out.extend(pairs[tok])
+        else:
+            out.append(tok)
+    return out
 
 
 def word_error_rate(target: str, transcript: str) -> float:
     """Levenshtein-Distanz auf Wortebene / Länge des Soll-Texts."""
     ref = normalize_tokens(target)
-    hyp = normalize_tokens(transcript)
+    hyp = split_fused_compounds(ref, normalize_tokens(transcript))
     if not ref:
         return 0.0 if not hyp else 1.0
     prev = list(range(len(hyp) + 1))
