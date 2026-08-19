@@ -53,14 +53,19 @@ Die App lädt beim Start das erste gefundene `.lesepaket` (keine Import-UI).
 
 ## Piper-Modell für Spike 2 (sherpa-onnx)
 
-Von https://github.com/k2-fsa/sherpa-onnx/releases (Asset
-`vits-piper-de_DE-thorsten-medium.tar.bz2` o. ä.) entpacken und pushen:
+**Im APK gebündelt** (`app/src/main/assets/piper-de/`, beim ersten TTS-Start
+nach `filesDir` entpackt): **`de_DE-thorsten-medium`** — Referenzstimme des
+Konzepts (§4.3) und obere Performance-Grenze für die Spike-Messung (läuft
+medium auf dem MediaTek, läuft x_low erst recht).
 
-```
-/sdcard/Lesefuchs/models/piper-de/model.onnx
-/sdcard/Lesefuchs/models/piper-de/tokens.txt
-/sdcard/Lesefuchs/models/piper-de/espeak-ng-data/
-```
+- Quelle: https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-de_DE-thorsten-medium.tar.bz2
+  (sherpa-onnx-Konvertierung der Piper-Stimme; Thorsten-Voice, Lizenz CC0,
+  22,05 kHz, Details `assets/piper-de/MODEL_CARD`)
+- Die Modell-Dateien sind **nicht im Git** (78 MB; `.gitignore`) — vor einem
+  Build einmalig obiges Archiv entpacken nach `app/src/main/assets/piper-de/`
+  als `model.onnx`, `tokens.txt`, `espeak-ng-data/`, `MODEL_CARD`.
+- Override ohne Rebuild: gleiche Dateien nach
+  `/sdcard/Lesefuchs/models/piper-de/` pushen (hat Vorrang).
 
 ## Abnahme (Konzept-Kriterium)
 

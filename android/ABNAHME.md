@@ -24,10 +24,20 @@ Herkunft zulassen.
 Logs parallel mitlesen: `adb logcat -s LesefuchsSpike`
 
 ### 2a · ML Kit bundled (Foto → Text)
+Vorher in einem zweiten Terminal mitlaufen lassen und Ausgabe festhalten:
+```
+adb logcat | findstr /i "gms mlkit GoogleApi"
+```
 Gedruckten Text (Buchseite) fotografieren.
 - [ ] Ja / [ ] Nein — Text wird ohne Play Services erkannt
 - Erkannte Zeichen/Blöcke, OCR-Dauer (ms): ________________________________
+- Relevante logcat-Zeilen (insb. GMS-Verfügbarkeitsfehler): _______________
+  ________________________________________________________________________
 - Auffälligkeiten: _______________________________________________________
+
+> Falls hier ein GMS-Verfügbarkeitsfehler die Erkennung verhindert, greift
+> der im Konzept (§10) bereits eingeplante Fallback **Tesseract4Android**
+> (`deu`, tessdata_best) — vermerken, NICHT vorab bauen.
 
 ### 2b · sherpa-onnx + Piper (200 Zeichen)
 Vorher Modell pushen (siehe README, `/sdcard/Lesefuchs/models/piper-de/`).

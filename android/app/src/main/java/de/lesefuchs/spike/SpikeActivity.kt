@@ -113,13 +113,21 @@ class SpikeActivity : ComponentActivity() {
     // --- Spike 2: sherpa-onnx TTS -----------------------------------------
 
     private fun runTts() {
-        val modelDir = File(Environment.getExternalStorageDirectory(), "Lesefuchs/models/piper-de")
+        // Vorrang: /sdcard-Override (Modelltausch ohne Rebuild); sonst das im
+        // APK gebündelte Modell (assets/piper-de → einmalig nach filesDir
+        // kopiert — espeak-ng liest echte Dateien, keine Assets).
+        val override = File(Environment.getExternalStorageDirectory(), "Lesefuchs/models/piper-de")
+        val modelDir = if (File(override, "model.onnx").isFile) {
+            addLog("TTS: nutze /sdcard-Override")
+            override
+        } else {
+            unpackBundledModel() ?: return
+        }
         val model = File(modelDir, "model.onnx")
         val tokens = File(modelDir, "tokens.txt")
         val espeakData = File(modelDir, "espeak-ng-data")
         if (!model.isFile || !tokens.isFile) {
-            addLog("TTS: Modell fehlt unter ${modelDir.absolutePath} " +
-                    "(model.onnx + tokens.txt + espeak-ng-data/, siehe README)")
+            addLog("TTS: Modell unvollständig unter ${modelDir.absolutePath}")
             return
         }
         val text = ("Der kleine Fuchs lief durch den Wald und zählte die Sterne. " +
@@ -163,6 +171,36 @@ class SpikeActivity : ComponentActivity() {
                 runOnUiThread { addLog("TTS FEHLER: ${t::class.simpleName}: ${t.message}") }
             }
         }.start()
+    }
+
+    /** Kopiert assets/piper-de einmalig nach filesDir (Marker: .complete). */
+    private fun unpackBundledModel(): File? {
+        val target = File(filesDir, "piper-de")
+        val marker = File(target, ".complete")
+        if (marker.isFile) return target
+        return try {
+            val t0 = System.nanoTime()
+            copyAssetDir("piper-de", target)
+            marker.writeText("ok")
+            addLog("TTS: gebündeltes Modell entpackt (${(System.nanoTime() - t0) / 1_000_000} ms)")
+            target
+        } catch (t: Throwable) {
+            addLog("TTS: Modell-Entpacken fehlgeschlagen: ${t.message}")
+            null
+        }
+    }
+
+    private fun copyAssetDir(assetPath: String, target: File) {
+        val children = assets.list(assetPath) ?: emptyArray()
+        if (children.isEmpty()) {
+            target.parentFile?.mkdirs()
+            assets.open(assetPath).use { input ->
+                target.outputStream().use { input.copyTo(it) }
+            }
+        } else {
+            target.mkdirs()
+            children.forEach { copyAssetDir("$assetPath/$it", File(target, it)) }
+        }
     }
 
     // --- Spike 3: Lock Task ------------------------------------------------
