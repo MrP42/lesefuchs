@@ -112,7 +112,7 @@ buchtitel_v3.lesepaket
 │   ├── p001.webp          # 1600px lange Kante, Q=80
 │   └── ...
 ├── audio/
-│   ├── ch01.opus          # 22.05 kHz mono, ~24 kbps
+│   ├── ch01.opus          # 24 kHz mono, ~24 kbps (Opus kennt nur 8/12/16/24/48 kHz)
 │   └── ...
 ├── cover.webp
 └── glossar.json           # optional: schwere Wörter + kindgerechte Erklärung + Audio
@@ -217,7 +217,7 @@ flowchart LR
 | Forced Alignment | **WhisperX** (wav2vec2-Alignmentmodell `de`) → primär<br/>**aeneas** → leichtgewichtige Alternative | WhisperX ist genauer auf Wortebene; aeneas ist reine CPU, schnell, für Satzebene völlig ausreichend. |
 | Silbentrennung | **`pyphen`** mit `de_DE` | Liefert Trennstellen nach deutschen Mustern. Dauer proportional nach Silbenlänge, gewichtet: Vokalkerne zählen doppelt. |
 | Fuzzy-Mapping | **RapidFuzz** + `difflib.SequenceMatcher` | Auf normalisierten Tokens (lowercase, ohne Interpunktion). Ergebnis 1:1, 1:n, n:1 oder null. |
-| Audio-Encoding | `ffmpeg -c:a libopus -b:a 24k -ar 22050 -ac 1` | 30-Minuten-Kapitel ≈ 5 MB. |
+| Audio-Encoding | `ffmpeg -c:a libopus -b:a 24k -ar 24000 -ac 1` | 30-Minuten-Kapitel ≈ 5 MB. Opus unterstützt nur 8/12/16/24/48 kHz — 22,05 kHz (frühere Angabe) ist mit libopus nicht möglich. |
 
 **Exakter statt geschätzter Timings — optionale Ausbaustufe:** Piper-Modelle sind VITS. Der Duration Predictor im ONNX-Graph liefert Phonemdauern direkt. Wer den Graphen um einen zusätzlichen Output erweitert (`w_ceil`), bekommt exakte Phonem→Silben→Wort-Timings **ohne** Alignment-Schritt. Lohnt sich, wenn die Alignment-Laufzeit stört — für den Anfang unnötig.
 
