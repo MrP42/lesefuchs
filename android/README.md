@@ -4,20 +4,32 @@ Beweis-APK (kein Produkt): Player mit Satz-/Wort-Highlight + Technik-Spike
 (ML Kit bundled, sherpa-onnx, Lock Task). `minSdk 28`, `targetSdk 34`,
 nur `arm64-v8a`, keine GMS-Abhängigkeiten.
 
-## Bauen (auf einer Maschine mit Android-Toolchain)
+## Bauen
 
-Auf dieser Entwicklungsmaschine sind **kein JDK und kein Android-SDK**
-installiert — der Build braucht einmalig:
+Toolchain liegt lokal unter `C:\Users\wolff\tools\` (Temurin JDK 17.0.12,
+Gradle 8.9, Android SDK 34 + Build-Tools 34.0.0 in `tools\android\sdk`;
+`local.properties` zeigt darauf). Build:
 
-1. Android Studio (bringt JDK 17 + SDK 34) — oder `sdkmanager` + Temurin 17.
-2. Im Ordner `android/`: `gradle wrapper` ausführen (erzeugt gradlew;
-   `gradle/wrapper/gradle-wrapper.properties` ist vorkonfiguriert auf 8.9),
-   danach `./gradlew :app:assembleDebug`.
-3. APK: `app/build/outputs/apk/debug/app-debug.apk`.
+```
+set JAVA_HOME=C:\Users\wolff\tools\jdk-17.0.12+7
+cd android && gradlew.bat :app:assembleDebug
+```
 
-Fällt die sherpa-onnx-Maven-Koordinate im Build durch, das AAR von
-https://github.com/k2-fsa/sherpa-onnx/releases nach `app/libs/` legen und in
-`app/build.gradle.kts` die Abhängigkeit auf `files("libs/…aar")` umstellen.
+APK: `app/build/outputs/apk/debug/app-debug.apk` — **77,4 MB**, ausschließlich
+`lib/arm64-v8a/` (größte Posten: onnxruntime 21,7 MB, ML-Kit-OCR-Modell
+11,1 MB, sherpa-onnx 9,7 MB).
+
+**sherpa-onnx:** gepinntes AAR **v1.13.6** aus den GitHub-Releases in
+`android/libs/sherpa-onnx-1.13.6.aar` (kein Maven-Artefakt), eingebunden über
+`implementation(files(rootProject.file("libs/…")))`.
+
+**GMS-Status:** Es ist keine `com.google.android.gms:*`-Abhängigkeit
+deklariert. `com.google.mlkit:text-recognition` (bundled) zieht transitiv
+`play-services-base/basement/tasks` als **eingebettete Bibliotheken** — das
+ist bei ML Kit unvermeidbar und bedeutet KEINE Abhängigkeit von der
+Play-Services-App auf dem Gerät: das OCR-Modell steckt im APK
+(`libmlkit_google_ocr_pipeline.so`). Endgültiger Nachweis = Spike 2a auf dem
+Fire Tablet. Nachprüfen: `gradlew.bat :app:dependencies`.
 
 ## Sideload auf Fire Tablet (Fire OS 8)
 
