@@ -56,8 +56,7 @@ dependencies {
     // Spike C: ML Kit BUNDLED — Modell im APK, läuft ohne Play Services (Konzept §2.2)
     implementation("com.google.mlkit:text-recognition:16.0.1")
 
-    // Spike C: sherpa-onnx für Piper-TTS. Falls die Koordinate im Build nicht
-    // auflöst: AAR von https://github.com/k2-fsa/sherpa-onnx/releases nach
-    // app/libs/ legen und stattdessen files("libs/sherpa-onnx.aar") einbinden.
-    implementation("com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.27")
+    // Spike C: sherpa-onnx für Piper-TTS — gepinntes AAR aus den GitHub-Releases
+    // (v1.13.6, enthält JNI-Libs inkl. arm64-v8a), bewusst kein Maven-Artefakt.
+    implementation(files(rootProject.file("libs/sherpa-onnx-1.13.6.aar")))
 }
