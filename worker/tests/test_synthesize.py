@@ -10,13 +10,11 @@ def test_looks_like_wav():
     assert not synthesize.looks_like_wav(b"OggS" + b"\x00" * 2000)
 
 
-def test_paragraph_hash_depends_on_text_seed_voice(settings):
-    h1 = synthesize.paragraph_hash("Hallo", settings)
-    assert h1 == synthesize.paragraph_hash("Hallo", settings)
-    settings2 = settings.model_copy(update={"fish_seed": 99})
-    assert h1 != synthesize.paragraph_hash("Hallo", settings2)
-    settings3 = settings.model_copy(update={"fish_reference_id": "papa"})
-    assert h1 != synthesize.paragraph_hash("Hallo", settings3)
+def test_paragraph_hash_depends_on_text_seed_voice():
+    h1 = synthesize.paragraph_hash("Hallo", 42, "")
+    assert h1 == synthesize.paragraph_hash("Hallo", 42, "")
+    assert h1 != synthesize.paragraph_hash("Hallo", 99, "")
+    assert h1 != synthesize.paragraph_hash("Hallo", 42, "papa")
 
 
 def test_wav_duration(tmp_path):

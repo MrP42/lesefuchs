@@ -48,15 +48,19 @@ def run(job: Job, force: bool = False) -> None:
         for idx, para in enumerate(chapter["paragraphs"]):
             text = para["text"]
             key = f"{chapter['id']}/p{idx:03d}"
-            content_hash = paragraph_hash(text, settings)
             wav_rel = f"{AUDIO_DIR}/{chapter['id']}/p{idx:03d}.wav"
             wav_path = job.path(wav_rel)
 
+            # Wiederverwendung gegen den Hash der VORHANDENEN Aufnahme (mit
+            # deren Seed) prüfen — so überlebt eine vom verify-Schritt mit
+            # anderem Seed erzeugte, geprüfte Aufnahme jeden weiteren Lauf.
             prev = previous.get(key)
-            if not force and prev and prev["hash"] == content_hash and wav_path.is_file():
+            if (not force and prev and wav_path.is_file()
+                    and prev["hash"] == paragraph_hash(text, prev["seed"], settings.fish_reference_id)):
                 entries.append(prev)
                 reused += 1
                 continue
+            content_hash = paragraph_hash(text, settings.fish_seed, settings.fish_reference_id)
 
             audio = synthesize_paragraph(settings, text, settings.fish_seed)
             wav_path.parent.mkdir(parents=True, exist_ok=True)
@@ -87,8 +91,8 @@ def _existing_entries(job: Job) -> list[dict]:
 
 # ---- testbare Bausteine --------------------------------------------------
 
-def paragraph_hash(text: str, settings: Settings) -> str:
-    payload = f"{text}|{settings.fish_seed}|{settings.fish_reference_id}"
+def paragraph_hash(text: str, seed: int, reference_id: str) -> str:
+    payload = f"{text}|{seed}|{reference_id}"
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
