@@ -4,3 +4,4 @@ app/build/
 local.properties
 # Piper-Modell (78 MB) — Bezugsquelle und Ablage: README „Piper-Modell"
 app/src/main/assets/piper-de/
+.kotlin/
