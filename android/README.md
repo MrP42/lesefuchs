@@ -67,6 +67,28 @@ medium auf dem MediaTek, läuft x_low erst recht).
 - Override ohne Rebuild: gleiche Dateien nach
   `/sdcard/Lesefuchs/models/piper-de/` pushen (hat Vorrang).
 
+## Automatisierter Spike (ohne Bedienung)
+
+`.\abnahme.ps1` (Gerät per USB, Entwickleroptionen an) macht Punkt 1 und 2
+der Abnahme selbstständig: installieren, Testdaten pushen, SpikeActivity im
+Autorun starten, Ergebnisse aus dem Logcat ziehen → `abnahme-ergebnis.txt`.
+
+Direkt per adb geht es auch:
+```
+adb shell am start -n de.lesefuchs.spike/.SpikeActivity \
+    --ez autorun true --es ocr_image /sdcard/Lesefuchs/test/seite.png
+adb logcat -d -s LesefuchsSpike | findstr SPIKE_RESULT
+```
+Je Test genau eine Zeile, maschinenlesbar:
+```
+SPIKE_RESULT key=ocr      status=OK ms=… blocks=… chars=… accuracy=…
+SPIKE_RESULT key=tts      status=OK load_ms=… synth_ms=… rtf=… ram_after_mb=…
+SPIKE_RESULT key=locktask status=OK mode_name=LOCKED
+```
+Das OCR-Testbild (`testdata/seite.png`, deutscher Fließtext mit Umlauten und
+Ziffern) wird gegen `testdata/seite.txt` verglichen — daher `accuracy` statt
+nur „erkannt". Neu erzeugen: `testdata/make_testpage.py`.
+
 ## Abnahme (Konzept-Kriterium)
 
 5-Minuten-Kapitel abspielen: Wort-Highlight sichtbar synchron, kein Ruckeln,
