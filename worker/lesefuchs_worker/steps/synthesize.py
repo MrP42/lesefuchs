@@ -18,6 +18,7 @@ from pathlib import Path
 import requests
 
 from ..config import Settings
+from ..gpu import gpu_processes, pipeline_gpu, vram_status
 from ..job import Job
 
 ARTIFACT = "04_synthesis.json"
@@ -31,6 +32,14 @@ def run(job: Job, force: bool = False) -> None:
         return
 
     settings = job.settings
+    # GPU exklusiv + Ollama vorher entladen (WDDM-Falle, siehe gpu.py)
+    with pipeline_gpu(settings, holder="synthesize", release_llm=True):
+        _synthesize_all(job, force)
+
+
+def _synthesize_all(job: Job, force: bool) -> None:
+    settings = job.settings
+    input_hash = job.hash_of("03_normalized.json")
     if not fish_available(settings.fish_url):
         raise RuntimeError(
             f"Fish-Speech unter {settings.fish_url} nicht erreichbar — "
@@ -102,7 +111,7 @@ def looks_like_wav(data: bytes) -> bool:
 
 def fish_available(url: str) -> bool:
     try:
-        return requests.get(f"{url}/v1/health", timeout=5).status_code == 200
+        return requests.get(f"{url}/v1/health", timeout=(0.5, 5)).status_code == 200
     except requests.RequestException:
         return False
 
@@ -113,9 +122,22 @@ def synthesize_paragraph(settings: Settings, text: str, seed: int) -> bytes:
     if settings.fish_reference_id:
         payload["reference_id"] = settings.fish_reference_id
         payload["use_memory_cache"] = "on"
-    resp = requests.post(
-        f"{settings.fish_url}/v1/tts", json=payload, timeout=settings.fish_timeout_s
-    )
+    try:
+        resp = requests.post(
+            f"{settings.fish_url}/v1/tts", json=payload, timeout=settings.fish_timeout_s
+        )
+    except requests.Timeout as e:
+        # Fast immer die WDDM-Falle: ein zweiter Prozess (Ollama, ComfyUI …)
+        # belegt VRAM, Windows lagert aus, Fish wird 10–20× langsamer.
+        raise RuntimeError(
+            f"Fish-Speech antwortete nicht innerhalb von {settings.fish_timeout_s}s. "
+            f"Häufigste Ursache: die GPU ist von einem anderen Prozess belegt und "
+            f"Windows lagert VRAM aus (Synthese wird dann 10–20× langsamer).\n"
+            f"  VRAM: {vram_status()}\n"
+            f"  GPU-Prozesse: {gpu_processes()}\n"
+            f"  Abhilfe: fremde GPU-Last beenden (Ollama: `ollama stop <modell>`), "
+            f"dann Schritt erneut starten — synthetisierte Absätze bleiben erhalten."
+        ) from e
     if resp.status_code != 200:
         raise RuntimeError(f"Fish-Speech HTTP {resp.status_code}: {resp.text[:200]}")
     if not looks_like_wav(resp.content):

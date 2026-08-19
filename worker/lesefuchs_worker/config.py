@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # Alignment
     align_device: str = "cuda"
 
+    # GPU-Serialisierung (work/.gpu.lock): Wartezeit, bis ein anderer
+    # GPU-Schritt bzw. ein zweiter Job die Karte freigibt.
+    gpu_lock_timeout_s: float = 1800.0
+
     # Audio
     pause_between_paragraphs_ms: int = 350
     opus_bitrate: str = "24k"

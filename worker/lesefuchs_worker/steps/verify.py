@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 
+from ..gpu import pipeline_gpu
 from ..job import Job
 from . import synthesize as synth_step
 
@@ -23,6 +24,12 @@ def run(job: Job, force: bool = False, transcriber=None) -> None:
         print("  verify: unverändert, übersprungen")
         return
 
+    # Whisper UND (bei Re-Synthese) Fish-Speech — GPU exklusiv, LLM entladen.
+    with pipeline_gpu(job.settings, holder="verify", release_llm=True):
+        _verify_all(job, transcriber, input_hash)
+
+
+def _verify_all(job: Job, transcriber, input_hash: str) -> None:
     settings = job.settings
     transcriber = transcriber or make_transcriber(settings)
 

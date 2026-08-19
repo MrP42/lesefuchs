@@ -15,6 +15,7 @@ from __future__ import annotations
 import wave
 from pathlib import Path
 
+from ..gpu import pipeline_gpu
 from ..job import Job
 
 ARTIFACT = "06_alignment.json"
@@ -27,6 +28,12 @@ def run(job: Job, force: bool = False, aligner=None) -> None:
         print("  align: unverändert, übersprungen")
         return
 
+    # WhisperX belegt (bei align_device=cuda) die GPU — gleiches Lock.
+    with pipeline_gpu(job.settings, holder="align", release_llm=True):
+        _align_all(job, aligner, input_hash)
+
+
+def _align_all(job: Job, aligner, input_hash: str) -> None:
     settings = job.settings
     aligner = aligner or make_aligner(settings)
     synthesis = job.read_json("04_synthesis.json")["entries"]

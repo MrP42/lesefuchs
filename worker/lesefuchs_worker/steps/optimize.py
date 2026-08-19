@@ -13,6 +13,7 @@ import difflib
 
 import requests
 
+from ..gpu import pipeline_gpu, unload_ollama_model
 from ..job import Job
 
 ARTIFACT = "02_optimized.json"
@@ -69,11 +70,16 @@ def run(job: Job, force: bool = False) -> None:
     chat = make_chat(settings)
     out_chapters = []
     changed = 0
-    for chapter in doc["chapters"]:
-        originals = [p["text"] if isinstance(p, dict) else p for p in chapter["paragraphs"]]
-        optimized = optimize_paragraphs(originals, chat, settings.reading_level)
-        changed += sum(1 for a, b in zip(originals, optimized) if a != b)
-        out_chapters.append({"id": chapter["id"], "title": chapter["title"], "paragraphs": optimized})
+    # GPU exklusiv: Ollama darf nicht neben Fish-Speech/Whisper liegen.
+    with pipeline_gpu(settings, holder="optimize"):
+        for chapter in doc["chapters"]:
+            originals = [p["text"] if isinstance(p, dict) else p for p in chapter["paragraphs"]]
+            optimized = optimize_paragraphs(originals, chat, settings.reading_level)
+            changed += sum(1 for a, b in zip(originals, optimized) if a != b)
+            out_chapters.append({"id": chapter["id"], "title": chapter["title"],
+                                 "paragraphs": optimized})
+        # Modell sofort aus dem VRAM nehmen — der nächste GPU-Schritt ist TTS.
+        unload_ollama_model(settings.ollama_url, settings.ollama_model)
 
     optimized_doc = {"title": doc["title"], "chapters": out_chapters}
     job.write_json(ARTIFACT, optimized_doc)
@@ -141,7 +147,7 @@ def optimize_paragraphs(paragraphs: list[str], chat, reading_level: int) -> list
 
 def ollama_available(url: str) -> bool:
     try:
-        return requests.get(f"{url}/api/tags", timeout=3).status_code == 200
+        return requests.get(f"{url}/api/tags", timeout=(0.5, 3)).status_code == 200
     except requests.RequestException:
         return False
 
