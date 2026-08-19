@@ -54,7 +54,8 @@ jetzt strukturell:
   Dateideskriptor — stirbt ein Prozess, gibt das Betriebssystem es frei.
 - **LLM-Unload vor jedem TTS-/Whisper-Schritt:** Ollama bekommt
   `keep_alive: 0`; anschließend wird über `/api/ps` verifiziert, dass kein
-  Modell mehr geladen ist, erst dann startet Fish.
+  Modell mehr geladen ist, erst dann startet Fish. Real gemessen
+  (19.08.2026, llama3.2:3b): 8289 MiB → 2199 MiB VRAM, `/api/ps` leer.
 - **Fish-Timeout** meldet nicht mehr nur „read timeout", sondern VRAM-Stand,
   belegende GPU-Prozesse und die Abhilfe.
 
