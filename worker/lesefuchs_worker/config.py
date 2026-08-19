@@ -33,7 +33,8 @@ class Settings(BaseSettings):
     # Audio
     pause_between_paragraphs_ms: int = 350
     opus_bitrate: str = "24k"
-    opus_sample_rate: int = 22050
+    # Konzept nennt 22,05 kHz — Opus kennt nur 8/12/16/24/48 kHz, daher 24 kHz.
+    opus_sample_rate: int = 24000
 
     # Paket
     reading_level: int = 2
