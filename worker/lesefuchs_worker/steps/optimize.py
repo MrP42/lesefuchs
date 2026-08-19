@@ -9,11 +9,14 @@ Prompt nach Konzept §6.3a. Schutzregeln:
 """
 from __future__ import annotations
 
+import difflib
+
 import requests
 
 from ..job import Job
 
 ARTIFACT = "02_optimized.json"
+DIFF_FILE = "llm_diff.txt"
 
 MAX_WORDS_BY_LEVEL = {1: 8, 2: 12, 3: 16}
 
@@ -71,12 +74,38 @@ def run(job: Job, force: bool = False) -> None:
         changed += sum(1 for a, b in zip(originals, optimized) if a != b)
         out_chapters.append({"id": chapter["id"], "title": chapter["title"], "paragraphs": optimized})
 
-    job.write_json(ARTIFACT, {"title": doc["title"], "chapters": out_chapters})
+    optimized_doc = {"title": doc["title"], "chapters": out_chapters}
+    job.write_json(ARTIFACT, optimized_doc)
+    diff_text = build_llm_diff(doc, optimized_doc)
+    job.path(DIFF_FILE).write_text(diff_text, encoding="utf-8")
     job.mark_step("optimize", input_hash, model=settings.ollama_model, changed_paragraphs=changed)
-    print(f"  optimize: {changed} Absätze überarbeitet ({settings.ollama_model})")
+    print(f"  optimize: {changed} Absätze überarbeitet ({settings.ollama_model}) — Diff: {DIFF_FILE}")
 
 
 # ---- testbare Bausteine --------------------------------------------------
+
+def build_llm_diff(original_doc: dict, optimized_doc: dict) -> str:
+    """Unified Diff je GEÄNDERTEM Absatz (Original vs. Ollama-Ergebnis).
+    Unveränderte Absätze werden weggelassen — die Datei zeigt auf einen Blick,
+    was das LLM angefasst hat (Konzept §10: kein stilles Umschreiben)."""
+    blocks: list[str] = []
+    for orig_ch, opt_ch in zip(original_doc["chapters"], optimized_doc["chapters"]):
+        for idx, (orig, opt) in enumerate(zip(orig_ch["paragraphs"], opt_ch["paragraphs"])):
+            a = orig["text"] if isinstance(orig, dict) else orig
+            b = opt["text"] if isinstance(opt, dict) else opt
+            if a == b:
+                continue
+            diff = difflib.unified_diff(
+                a.splitlines() or [a], b.splitlines() or [b],
+                fromfile=f"{orig_ch['id']}/absatz{idx:03d} (Original)",
+                tofile=f"{orig_ch['id']}/absatz{idx:03d} (LLM)",
+                lineterm="",
+            )
+            blocks.append("\n".join(diff))
+    if not blocks:
+        return "Keine Absätze verändert.\n"
+    return "\n\n".join(blocks) + "\n"
+
 
 def build_prompt(text: str, reading_level: int) -> str:
     return PROMPT_TEMPLATE.format(

@@ -1,8 +1,22 @@
 from lesefuchs_worker.steps.optimize import (
+    build_llm_diff,
     build_prompt,
     optimize_paragraphs,
     split_into_paragraphs,
 )
+
+
+def test_llm_diff_only_changed_paragraphs():
+    orig = {"chapters": [{"id": "ch01", "paragraphs": ["Gleich.", "Alt und krumm."]}]}
+    opt = {"chapters": [{"id": "ch01", "paragraphs": [{"text": "Gleich."}, {"text": "Neu und gerade."}]}]}
+    diff = build_llm_diff(orig, opt)
+    assert "absatz001" in diff and "absatz000" not in diff
+    assert "-Alt und krumm." in diff and "+Neu und gerade." in diff
+
+
+def test_llm_diff_no_changes():
+    doc = {"chapters": [{"id": "ch01", "paragraphs": ["Gleich."]}]}
+    assert build_llm_diff(doc, doc) == "Keine Absätze verändert.\n"
 
 
 def test_prompt_contains_rules_and_level():
