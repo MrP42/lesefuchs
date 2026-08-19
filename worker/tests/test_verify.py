@@ -1,5 +1,11 @@
 from lesefuchs_worker.steps import ingest, normalize, synthesize, verify
-from lesefuchs_worker.steps.verify import normalize_tokens, word_error_rate
+from lesefuchs_worker.steps.verify import (
+    count_syllables,
+    detect_end_repetition,
+    detect_truncation,
+    normalize_tokens,
+    word_error_rate,
+)
 
 
 def test_normalize_tokens():
@@ -16,6 +22,35 @@ def test_wer_counts_substitutions_and_insertions():
     assert word_error_rate("", "") == 0.0
 
 
+def test_count_syllables_vowel_groups():
+    assert count_syllables("Kokosnuss") == 3
+    assert count_syllables("Der kleine Drache") == 1 + 2 + 2
+    assert count_syllables("Baum") == 1          # Vokalgruppe "au"
+
+
+def test_end_repetition_detected():
+    base = ["der", "fuchs", "lief", "durch", "den", "wald"]
+    assert detect_end_repetition(base + ["durch", "den", "wald"]) is True
+    assert detect_end_repetition(base) is False
+    # zweimal dasselbe WORT ist normal (n=1 < 3)
+    assert detect_end_repetition(["sehr", "sehr", "gut", "gut"]) is False
+
+
+def test_truncation_last_word_mismatch():
+    assert detect_truncation("Der Fuchs rennt schnell.", "Der Fuchs rennt",
+                             5000, 180, 0.6) == "last_word_mismatch"
+    assert detect_truncation("Der Fuchs rennt.", "der fuchs rennt",
+                             5000, 180, 0.6) is None
+
+
+def test_truncation_duration():
+    # 12 Silben × 180 ms = 2160 ms Erwartung; 1000 ms < 60 % davon
+    text = "Der kleine Fuchs lief immer weiter durch den dunklen Wald."
+    reason = detect_truncation(text, text.lower().rstrip("."), 1000, 180, 0.6)
+    assert reason is not None and reason.startswith("duration_")
+    assert detect_truncation(text, text.lower().rstrip("."), 2000, 180, 0.6) is None
+
+
 def _prepare(job, monkeypatch):
     ingest.run(job)
     normalize.run(job)
@@ -28,8 +63,9 @@ def _prepare(job, monkeypatch):
             f.setnchannels(1)
             f.setsampwidth(2)
             f.setframerate(44100)
-            # Seed beeinflusst die Länge, damit Neu-Synthese erkennbar ist
-            f.writeframes(b"\x00\x00" * (4410 + seed))
+            # ~1 s (über der Trunkierungs-Erwartung); Seed variiert die Länge,
+            # damit Neu-Synthese erkennbar ist
+            f.writeframes(b"\x00\x00" * (44100 + seed))
         return buf.getvalue()
 
     monkeypatch.setattr(synthesize, "fish_available", lambda url: True)

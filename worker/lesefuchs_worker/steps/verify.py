@@ -35,23 +35,30 @@ def run(job: Job, force: bool = False, transcriber=None) -> None:
         wav_path = job.path(entry["wav"])
         transcript = transcriber(wav_path)
         wer = word_error_rate(target, transcript)
-        attempts = [{"seed": entry["seed"], "wer": wer, "transcript": transcript}]
+        defects = paragraph_defects(target, transcript, entry["duration_ms"], settings)
+        attempts = [{"seed": entry["seed"], "wer": wer, "defects": defects,
+                     "transcript": transcript}]
 
-        best = {"wer": wer, "audio": None, "seed": entry["seed"], "transcript": transcript}
+        best = {"wer": wer, "defects": defects, "audio": None, "seed": entry["seed"]}
         attempt = 1
-        while best["wer"] > settings.verify_wer_threshold and attempt < settings.verify_max_attempts:
+        while ((best["wer"] > settings.verify_wer_threshold or best["defects"])
+               and attempt < settings.verify_max_attempts):
             attempt += 1
             new_seed = settings.fish_seed + attempt * 1000 + entry["para_index"]
-            print(f"  verify: {entry['key']} WER {best['wer']:.2f} > "
-                  f"{settings.verify_wer_threshold} — Re-Synthese (Seed {new_seed})")
+            reason = best["defects"] or [f"WER {best['wer']:.2f}"]
+            print(f"  verify: {entry['key']} auffällig ({', '.join(map(str, reason))}) "
+                  f"— Re-Synthese (Seed {new_seed})")
             audio = synth_step.synthesize_paragraph(settings, target, new_seed)
             tmp = wav_path.with_suffix(f".try{attempt}.wav")
             tmp.write_bytes(audio)
             transcript = transcriber(tmp)
             wer = word_error_rate(target, transcript)
-            attempts.append({"seed": new_seed, "wer": wer, "transcript": transcript})
-            if wer < best["wer"]:
-                best = {"wer": wer, "audio": audio, "seed": new_seed, "transcript": transcript}
+            defects = paragraph_defects(target, transcript, synth_step.wav_duration_ms(tmp), settings)
+            attempts.append({"seed": new_seed, "wer": wer, "defects": defects,
+                             "transcript": transcript})
+            # besser = erst weniger Fehlermodi, dann niedrigere WER
+            if (len(defects), wer) < (len(best["defects"]), best["wer"]):
+                best = {"wer": wer, "defects": defects, "audio": audio, "seed": new_seed}
 
         if best["audio"] is not None:
             wav_path.write_bytes(best["audio"])
@@ -65,7 +72,8 @@ def run(job: Job, force: bool = False, transcriber=None) -> None:
         results.append({
             "key": entry["key"],
             "wer": best["wer"],
-            "ok": best["wer"] <= settings.verify_wer_threshold,
+            "defects": best["defects"],
+            "ok": best["wer"] <= settings.verify_wer_threshold and not best["defects"],
             "attempts": attempts,
         })
 
@@ -81,6 +89,49 @@ def run(job: Job, force: bool = False, transcriber=None) -> None:
 
 
 # ---- testbare Bausteine --------------------------------------------------
+
+def count_syllables(text: str) -> int:
+    """Silbenzählung über Vokalgruppen (Konzept §5.5: ~95 % treffsicher)."""
+    return sum(len(re.findall(r"[aeiouyäöü]+", w)) or 1 for w in normalize_tokens(text))
+
+
+def detect_end_repetition(tokens: list[str], min_n: int = 3) -> bool:
+    """True, wenn eine identische Wortfolge (n ≥ min_n) doppelt am Ende steht —
+    typischer TTS-Fehlermodus (Schleife am Absatzende)."""
+    for n in range(min_n, len(tokens) // 2 + 1):
+        if tokens[-n:] == tokens[-2 * n:-n]:
+            return True
+    return False
+
+
+def detect_truncation(target: str, transcript: str, duration_ms: int,
+                      ms_per_syllable: int, min_ratio: float) -> str | None:
+    """Liefert den Trunkierungs-Grund oder None.
+    a) Letztes transkribiertes Wort ≠ letztes Soll-Wort.
+    b) Audiodauer unter min_ratio der silbenbasierten Erwartung."""
+    ref = normalize_tokens(target)
+    hyp = normalize_tokens(transcript)
+    if ref and (not hyp or hyp[-1] != ref[-1]):
+        return "last_word_mismatch"
+    expected_ms = count_syllables(target) * ms_per_syllable
+    if expected_ms > 0 and duration_ms < expected_ms * min_ratio:
+        return f"duration_{duration_ms}ms_lt_{min_ratio:.0%}_of_{expected_ms}ms"
+    return None
+
+
+def paragraph_defects(target: str, transcript: str, duration_ms: int, settings) -> list[str]:
+    """WER-unabhängige Fehlermodi eines Absatzes (leer = unauffällig)."""
+    defects = []
+    if detect_end_repetition(normalize_tokens(transcript)):
+        defects.append("end_repetition")
+    truncation = detect_truncation(
+        target, transcript, duration_ms,
+        settings.verify_ms_per_syllable, settings.verify_min_duration_ratio,
+    )
+    if truncation is not None:
+        defects.append(f"truncation:{truncation}")
+    return defects
+
 
 def normalize_tokens(text: str) -> list[str]:
     """Kleinbuchstaben, ohne Interpunktion — Basis des WER-Vergleichs."""

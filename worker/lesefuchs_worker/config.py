@@ -24,8 +24,12 @@ class Settings(BaseSettings):
 
     # Rücktranskriptions-Check
     verify_model: str = "small"
-    verify_wer_threshold: float = 0.15
+    verify_wer_threshold: float = 0.05
     verify_max_attempts: int = 3
+    # Trunkierungs-Heuristik: erwartete Sprechdauer ≈ Silben × ms; Audio unter
+    # dem Verhältnis der Erwartung gilt als abgeschnitten.
+    verify_ms_per_syllable: int = 180
+    verify_min_duration_ratio: float = 0.6
 
     # Alignment
     align_device: str = "cuda"
