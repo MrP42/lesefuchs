@@ -111,8 +111,13 @@ class Job:
     # ---- Schritt-Status (Resume) ----------------------------------------
 
     def step_done(self, step: str, input_hash: str) -> bool:
+        """True nur für vollständig erledigte Schritte mit identischer Eingabe.
+        Übersprungene Schritte (z. B. Ollama war nicht erreichbar) zählen NICHT
+        als erledigt — sie werden beim nächsten Lauf erneut versucht."""
         info = self.state["steps"].get(step)
-        return bool(info and info.get("status") == "done" and info.get("input_hash") == input_hash)
+        return bool(info and info.get("status") == "done"
+                    and not info.get("skipped")
+                    and info.get("input_hash") == input_hash)
 
     def mark_step(self, step: str, input_hash: str, **meta: Any) -> None:
         self.state["steps"][step] = {

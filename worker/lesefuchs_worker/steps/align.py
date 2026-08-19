@@ -178,6 +178,11 @@ def make_aligner(settings):
         ) from e
 
     device = settings.align_device
+    if device == "cuda":
+        import torch
+        if not torch.cuda.is_available():
+            print("  align: CUDA nicht verfügbar (CPU-Torch installiert?) — Fallback auf CPU")
+            device = "cpu"
     model, metadata = whisperx.load_align_model(language_code="de", device=device)
 
     def align(wav_path: Path, text: str) -> list[dict]:
