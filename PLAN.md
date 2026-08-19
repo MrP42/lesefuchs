@@ -57,6 +57,20 @@ Konzept-Referenz: `Lesefuchs_Konzept.md` §4 (Paketformat), §5.3 (Sync-Engine),
   CameraX — minimaler Beweis „Foto → Text", eine Abhängigkeit weniger.
   CameraX kommt erst in der echten App (Konzept §5.1).
 
+## Ergebnis (19.08.2026)
+
+- **Demo-Paket gebaut und validiert:** `worker/out/finn-fuchs-und-der-sternenwald_v1.lesepaket`
+  (2 Kapitel, 611 Tokens, 70 Sätze, 951 Silben, 246 s Audio, 724 KiB).
+  Pipeline komplett: Ollama gemma4:e4b (2 Absätze überarbeitet) → Normalisierung
+  (9 Zahl-Ersetzungen) → Fish-Speech (17 Absätze) → Whisper-Check (alle unter
+  WER-Schwelle, 0 Re-Synthesen) → WhisperX-Alignment (CPU-Fallback) → pyphen →
+  Opus → Paket. Validiert: Checksumme, Token-Monotonie, Silben decken Wortzeiten
+  exakt, letztes Token 105,7 s bei 106,3 s Kapitel-Audio (kein Drift), Opus per
+  ffprobe abspielbar.
+- Resume real bewiesen: Abbruch bei align (CUDA-Fehler) → Fix → zweiter Lauf
+  übernahm alle 17 vertonten und geprüften Absätze aus dem Cache.
+- Worker-Testsuite: 43 Tests grün, ohne externe Dienste lauffähig.
+
 ## Offene Punkte
 
 - **Kein JDK / Android-SDK auf dieser Maschine** → `android/` wird vollständig
@@ -70,4 +84,7 @@ Konzept-Referenz: `Lesefuchs_Konzept.md` §4 (Paketformat), §5.3 (Sync-Engine),
 - Fish-Speech-Lizenz: Research License — private Nutzung ok (bereits in
   Etappen-Planung dokumentiert).
 - Abnahme „läuft auf dem Tablet" erfordert Gerät + gebautes APK → manueller
-  Schritt nach dieser Etappe.
+  Schritt nach dieser Etappe (Anleitung: `android/README.md`).
+- WhisperX läuft aktuell auf CPU-Torch (Alignment ~2 min für 4-min-Buch, ok).
+  Für GPU-Alignment: `pip install torch --index-url https://download.pytorch.org/whl/cu126`.
+- `.env` setzt `LF_OLLAMA_MODEL=gemma4:e4b` (Konzept-Empfehlung, lokal vorhanden).
