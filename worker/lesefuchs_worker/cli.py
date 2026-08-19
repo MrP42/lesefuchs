@@ -58,6 +58,10 @@ def cmd_jobs(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows-Konsole liefert oft cp1252 — Pipeline-Ausgaben enthalten Unicode.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="lesefuchs-worker", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
