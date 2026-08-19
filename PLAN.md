@@ -19,36 +19,25 @@ Konzept-Referenz: `Lesefuchs_Konzept.md` §4 (Paketformat), §5.3 (Sync-Engine),
 
 ### Worker
 1. ✅ Aufräumen (alter `server/`-Stand entfernen) + PLAN.md
-2. Projektgerüst `worker/`: pyproject, pydantic-settings-Config, `.env.example`,
-   Job-Verwaltung (`work/<job-id>/state.json`, Resume), CLI-Skelett (argparse)
-3. Schritt `ingest`: TXT/MD → Kapitel/Absätze (`01_paragraphs.json`) + Tests
-4. Schritt `normalize`: num2words(de), Abkürzungstabelle, deterministisch + Tests
-5. Schritt `optimize`: Ollama `/api/chat`, Prompt aus Konzept §6.3a,
-   Absatz-Erhalt erzwingen; ohne erreichbaren Ollama: Skip mit Warnung + Tests (gemockt)
-6. Schritt `synthesize`: Fish-Speech `/v1/tts` je Absatz → WAV; Cache je Absatz-Hash
-7. Schritt `verify`: faster-whisper-Transkription vs. Soll (WER-Schwelle aus
-   Config); bei Überschreitung Re-Synthese mit anderem Seed (max N Versuche)
-8. Schritt `align`: WhisperX Forced Alignment (de) je Absatz → Wort-Timestamps;
-   Offsets beim Konkatenieren (Pausen zwischen Absätzen) verrechnen
-9. Schritt `syllables`: pyphen de_DE, Dauer proportional (Vokalkerne doppelt) + Tests
-10. Schritt `encode` + `package`: ffmpeg → `ch01.opus`; `manifest.json` +
-    `content.json` exakt nach §4.3/§4.4 (REFLOW, `vis: null`), ZIP → `out/` + Tests
-11. `examples/beispiel.md` (≈5 min Vorlesetext), `Makefile` mit `make demo`,
-    README; Ende-zu-Ende-Lauf gegen lokale Dienste
+2. ✅ Projektgerüst `worker/` (cf33d4d)
+3. ✅ `ingest` + Tests (e29c778)
+4. ✅ `normalize` + Tests (895118e)
+5. ✅ `optimize` (Ollama, Absatz-Erhalt, Offline-Fallback) + Tests (e6369e8)
+6. ✅ `synthesize` (Fish-Speech, Cache) + Tests (4f494f0)
+7. ✅ `verify` (faster-whisper, WER, Re-Synthese) + Tests (0263b1f)
+8. ✅ `align` (Kapitel-Konkatenation, WhisperX, Interpolation) + Tests (5e57916)
+9. ✅ `syllables` (pyphen, Vokalgewichtung) + Tests (998cf62)
+10. ✅ `encode` + `package` (§4.2–4.4) + E2E-Test (ed0e81a)
+11. ✅ Beispiel, Makefile, README (a356498); Demo-Lauf gegen Ollama
+    (gemma4:e4b) + Fish-Speech gestartet
 
 ### Android
-12. Gradle-Projekt: Wrapper, Version Catalog, `app/`-Modul (Compose, Media3,
-    kotlinx-serialization; nur arm64-v8a, keine GMS)
-13. `LesepaketLoader`: ZIP/Ordner aus `/sdcard/Lesefuchs/inbox/` lesen,
-    `content.json`/`manifest.json` parsen (Datenklassen nach §4.4)
-14. `HighlightEngine` (Portierung Konzept §5.3): Token-Suche ab Cache-Index,
-    Binärsuche bei Sprung, Lead-Offset
-15. Player-Screen: Andika-Font, Satz-Highlight (sanft) + Wort-Highlight (kräftig),
-    `withFrameNanos`-Loop, Wort-Tap → Seek, Play/Pause/±
-16. Spike-Activity: ML Kit bundled (Foto via TakePicturePreview → Text),
-    sherpa-onnx-TTS (Modelle von `/sdcard/Lesefuchs/models/`), Latenz/RAM-Log,
-    `startLockTask()`-Ergebnis-Log
-17. Abschluss: README (Build-/Sideload-Anleitung), offene Punkte konsolidieren
+12. ✅ Gradle-Projekt + Andika (325de4c)
+13. ✅ `LesepaketLoader` + Datenklassen §4.4 (fd9a4cd)
+14. ✅ `HighlightEngine` §5.3 (fd9a4cd)
+15. ✅ Player-Screen (fd9a4cd)
+16. ✅ SpikeActivity (214ad9e)
+17. ✅ README Build/Sideload; offene Punkte unten
 
 ## Entscheidungen (nach Konzept-Empfehlung, nicht blockierend)
 
