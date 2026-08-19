@@ -17,16 +17,24 @@
 [CmdletBinding()]
 param(
     [string]$Adb = "$env:USERPROFILE\tools\android\sdk\platform-tools\adb.exe",
-    [string]$Apk = "$PSScriptRoot\app\build\outputs\apk\debug\app-debug.apk",
-    [string]$TestImage = "$PSScriptRoot\testdata\seite.png",
-    [string]$ExpectedText = "$PSScriptRoot\testdata\seite.txt",
-    [string]$Package = "$PSScriptRoot\..\worker\out\finn-fuchs-und-der-sternenwald_v1.lesepaket",
+    [string]$Apk,
+    [string]$TestImage,
+    [string]$ExpectedText,
+    [string]$Package,
     [switch]$SkipInstall,
     [int]$TimeoutSeconds = 240
 )
 
 $ErrorActionPreference = 'Stop'
 $appId = 'de.lesefuchs.spike'
+
+# $PSScriptRoot ist in param()-Defaults nicht zuverlaessig gefuellt (je nach
+# Aufrufart) -> Pfade hier aufloesen.
+$root = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $Apk)          { $Apk = Join-Path $root 'app\build\outputs\apk\debug\app-debug.apk' }
+if (-not $TestImage)    { $TestImage = Join-Path $root 'testdata\seite.png' }
+if (-not $ExpectedText) { $ExpectedText = Join-Path $root 'testdata\seite.txt' }
+if (-not $Package)      { $Package = Join-Path $root '..\worker\out\finn-fuchs-und-der-sternenwald_v1.lesepaket' }
 
 function Step($text) { Write-Host "`n=== $text" -ForegroundColor Cyan }
 function Ok($text)   { Write-Host "  OK   $text" -ForegroundColor Green }
@@ -36,19 +44,35 @@ function Fail($text) { Write-Host "  FAIL $text" -ForegroundColor Red }
 if (-not (Test-Path $Adb)) { throw "adb nicht gefunden: $Adb" }
 
 # --- Gerät -----------------------------------------------------------------
-Step "Gerät suchen"
-$devices = & $Adb devices | Select-Object -Skip 1 | Where-Object { $_ -match '\tdevice$' }
-if (-not $devices) {
-    Fail "Kein Gerät verbunden. USB-Debugging am Fire Tablet aktivieren:"
+Step "Geraet suchen"
+# @(...) erzwingt ein Array: bei genau einem Geraet liefert $devices[0] sonst
+# das erste ZEICHEN der Zeile statt der Zeile.
+$devices = @(& $Adb devices | Select-Object -Skip 1 | Where-Object { $_ -match '\tdevice$' })
+if ($devices.Count -eq 0) {
+    Fail "Kein Geraet verbunden. USB-Debugging am Fire Tablet aktivieren:"
     Write-Host "       Einstellungen -> Geraeteoptionen -> 7x auf Seriennummer tippen,"
     Write-Host "       danach Entwickleroptionen -> USB-Debugging."
     exit 2
 }
 $serial = ($devices[0] -split '\t')[0]
-$model = (& $Adb -s $serial shell getprop ro.product.model).Trim()
-$fireOs = (& $Adb -s $serial shell getprop ro.build.version.fireos).Trim()
-$sdk = (& $Adb -s $serial shell getprop ro.build.version.sdk).Trim()
-Ok "$model (Serial $serial, Fire OS '$fireOs', SDK $sdk)"
+function Prop($name) { (& $Adb -s $serial shell getprop $name | Out-String).Trim() }
+$model = Prop 'ro.product.model'
+$fireOs = Prop 'ro.build.version.fireos'
+$release = Prop 'ro.build.version.release'
+$sdk = Prop 'ro.build.version.sdk'
+$abi = Prop 'ro.product.cpu.abi'
+$isEmulator = ($serial -like 'emulator-*') -or ((Prop 'ro.kernel.qemu') -eq '1') -or ($model -like '*sdk*')
+$osLabel = if ($fireOs) { "Fire OS $fireOs" } else { "Android $release" }
+Ok "$model (Serial $serial, $osLabel, SDK $sdk, ABI $abi)"
+
+if ($isEmulator) {
+    Warn "EMULATOR erkannt - Vorlauf, KEINE Abnahme."
+    Warn "  Nicht verwertbar: TTS-Latenz/RTF/RAM (Host-CPU), Lead-Offset (andere Puffer-Latenz)."
+    $gms = @(& $Adb -s $serial shell pm list packages | Where-Object { $_ -match 'com\.google\.android\.gms$' })
+    if ($gms.Count -gt 0) {
+        Warn "  Play Services im Image -> 2a taugt NICHT als GMS-Freiheitsnachweis."
+    }
+}
 
 # --- 1 · Installation ------------------------------------------------------
 Step "1 - APK installieren"
@@ -112,7 +136,7 @@ foreach ($r in $results) {
 Step "Zusammenfassung"
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
 $report = @("# Autorun-Ergebnis $stamp", "Geraet: $model (Fire OS '$fireOs', SDK $sdk)", "") + $results
-$reportPath = "$PSScriptRoot\abnahme-ergebnis.txt"
+$reportPath = Join-Path $root 'abnahme-ergebnis.txt'
 $report | Set-Content -Path $reportPath -Encoding UTF8
 Ok "Protokoll: $reportPath"
 

@@ -1,0 +1,6 @@
+﻿# Autorun-Ergebnis 2026-08-19 15:53
+Geraet: Pixel Tablet (Fire OS '', SDK 35)
+
+SPIKE_RESULT key=ocr status=OK ms=1948 blocks=5 chars=570 accuracy=0.996
+SPIKE_RESULT key=tts status=OK chars=179 load_ms=1776 synth_ms=2158 audio_ms=9133 rtf=0.24 ram_before_mb=67 ram_after_mb=277 device_free_mb=2273
+SPIKE_RESULT key=locktask status=FAIL reason=not_allowed mode_before=0 mode_after=0
