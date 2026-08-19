@@ -159,7 +159,8 @@ foreach ($r in $results) {
 # --- Zusammenfassung -------------------------------------------------------
 Step "Zusammenfassung"
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
-$report = @("# Autorun-Ergebnis $stamp", "Geraet: $model (Fire OS '$fireOs', SDK $sdk)", "") + $results
+$kind = if ($isEmulator) { 'EMULATOR-VORLAUF (keine Abnahme)' } else { 'Geraet' }
+$report = @("# Autorun-Ergebnis $stamp", "$kind`: $model ($osLabel, SDK $sdk, ABI $abi)", "") + $results
 $reportPath = Join-Path $root 'abnahme-ergebnis.txt'
 $report | Set-Content -Path $reportPath -Encoding UTF8
 Ok "Protokoll: $reportPath"
