@@ -1,0 +1,32 @@
+[project]
+name = "lesefuchs-worker"
+version = "0.1.0"
+description = "Lesefuchs Render-Worker: TXT/MD -> .lesepaket (Audio + Wort-/Silben-Timings)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic-settings>=2.4",
+    "requests>=2.31",
+    "num2words>=0.5.13",
+    "pyphen>=0.15",
+]
+
+[project.optional-dependencies]
+# Schwere ML-Abhängigkeiten bewusst getrennt installierbar:
+#   pip install -e .[verify]   # Rücktranskriptions-Check
+#   pip install -e .[align]    # Forced Alignment (zieht torch!)
+verify = ["faster-whisper>=1.0"]
+align = ["whisperx>=3.1"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+lesefuchs-worker = "lesefuchs_worker.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["lesefuchs_worker*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
