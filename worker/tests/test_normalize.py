@@ -14,6 +14,7 @@ def test_abbreviations():
     assert expand_abbreviations("Dr. Meier wohnt in der Waldstr. 3") == \
         "Doktor Meier wohnt in der Waldstraße 3"
     assert expand_abbreviations("50 % Rabatt") == "50 Prozent Rabatt"
+    assert expand_abbreviations("Bücher etc. nach Abs. 3") == "Bücher et cetera nach Absatz 3"
 
 
 def test_dates_dative_and_nominative():

@@ -402,12 +402,13 @@ vorgelesen werden kann. Der Inhalt bleibt inhaltlich identisch.
 # Regeln
 1. Entferne: Kopf- und Fußzeilen, Seitenzahlen, Fußnotenmarken,
    Trennstriche am Zeilenende (füge die Wörter zusammen).
-2. Löse Abkürzungen auf: "z. B." → "zum Beispiel", "u. a." → "unter anderem".
-3. Setze fehlende Satzzeichen, wenn OCR sie verschluckt hat.
-4. Teile Sätze mit mehr als {max_woerter} Wörtern an natürlichen Stellen.
-5. Direkte Rede bleibt wörtlich erhalten. Eigennamen bleiben unverändert.
-6. Füge NICHTS hinzu, was nicht im Original steht. Kürze NICHTS weg.
-7. Zahlen NICHT ausschreiben — das erledigt ein nachgelagerter Schritt.
+2. Setze fehlende Satzzeichen, wenn OCR sie verschluckt hat.
+3. Teile Sätze mit mehr als {max_woerter} Wörtern an natürlichen Stellen.
+4. Direkte Rede bleibt wörtlich erhalten. Eigennamen bleiben unverändert.
+5. Füge NICHTS hinzu, was nicht im Original steht. Kürze NICHTS weg.
+6. Zahlen NICHT ausschreiben und Abkürzungen NICHT auflösen ("z. B."
+   bleibt "z. B.") — beides erledigt ein nachgelagerter, deterministischer
+   Schritt (num2words + Abkürzungstabelle, §4.5).
 
 # Ausgabeformat
 Nur der überarbeitete Text. Kein Kommentar, kein Markdown, keine Backticks.

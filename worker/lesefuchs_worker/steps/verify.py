@@ -164,7 +164,15 @@ def split_fused_compounds(ref: list[str], hyp: list[str]) -> list[str]:
 
 
 def word_error_rate(target: str, transcript: str) -> float:
-    """Levenshtein-Distanz auf Wortebene / Länge des Soll-Texts."""
+    """Levenshtein-Distanz auf Wortebene / Länge des Soll-Texts.
+
+    INVARIANTE (dauerhaft): Die Angleichung von Schreibvarianten —
+    normalize_tokens (Kleinschreibung, Interpunktion, Ziffern→Zahlwörter)
+    und split_fused_compounds (Zusammen-/Getrenntschreibung) — läuft IMMER
+    VOR der Fehlerentscheidung. Grund: Whisper normalisiert invers
+    („einhundert"→„100", „Dachs leise"→„Dachsleise"); ohne diese Angleichung
+    werden korrekte Aufnahmen als fehlerhaft eingestuft und teuer neu
+    synthetisiert (am 19.08.2026 real passiert: 5 unnötige GPU-Re-Synthesen)."""
     ref = normalize_tokens(target)
     hyp = split_fused_compounds(ref, normalize_tokens(transcript))
     if not ref:
