@@ -6,6 +6,34 @@ Gerät: ____________________ (Modell, Fire-OS-Version) · Datum: __________
 Abnahmekriterium gesamt: 5-Minuten-Kapitel läuft, Wort-Highlight sichtbar
 synchron, kein Ruckeln, kein Drift bis zum Kapitelende.
 
+---
+
+## Emulator-Vorlauf (19.08.2026) — KEINE Abnahme
+
+Gerät: **Pixel Tablet, Android 15 (SDK 35), x86_64** mit ARM64-Translation
+(`ro.product.cpu.abilist = x86_64,arm64-v8a`), Google Play Services im Image.
+Das ist in drei Punkten nicht das Zielgerät (Fire OS 8 = Android 11, arm64,
+kein GMS) — die Tabelle trennt deshalb strikt.
+
+| Prüfung | Emulator-Ergebnis | Für die Abnahme verwertbar? |
+|---|---|---|
+| Paket laden (`.lesepaket` → Player) | OK — 611 Tokens, 2 Kapitel, Text gesetzt in Andika | **ja** |
+| **Highlight-Synchronität** (autom., Kap. 1) | **max_dev 0 ms, mean 0,0 ms, 0 Mismatches bei 424 Samples**; tail_gap 556 ms bei 106,5 s Audio | **ja** — prüft die Engine, nicht die Hardware |
+| OCR-Genauigkeit auf `testdata/seite.png` | 99,6 % (570 Zeichen, 5 Blöcke, 1,65 s) | **ja** (Genauigkeit) |
+| Wort-Tap-Seek | OK — Tap auf „alten" setzt Wort- und Satz-Highlight, scrollt hin | **ja** |
+| Satz-/Wort-Highlight optisch | OK, durchgehender Satzbalken | **ja** |
+| ML Kit **ohne GMS** | — | **nein**: Play Services im Image → 2a beweist hier nichts |
+| TTS Latenz / RTF / RAM | lief (rtf 0,24, 277 MB) | **nein**: Host-CPU + ARM-Translation |
+| LockTask | `status=FAIL reason=not_active` (Modus blieb 0) | **nein**: ohne Device-Owner erscheint ein Bestätigungsdialog, den im Autorun niemand bestätigt |
+| Lead-Offset | — | **nein**: andere Audio-Puffer-Latenz |
+
+**Fazit des Vorlaufs:** Engine, Paketformat, Player-Interaktion und OCR-Kette
+sind bewiesen. Offen und ausschließlich am Fire Tablet zu klären: GMS-Freiheit
+der OCR, reale TTS-Leistung auf MediaTek, LockTask unter Fire OS, Lead-Offset,
+flüssige Wiedergabe auf schwacher Hardware, Kind-Reaktion.
+
+---
+
 > **Punkte 1 und 2 laufen automatisch:** `.\abnahme.ps1` installiert das APK,
 > schiebt Testbild und Demo-Paket aufs Gerät, startet die SpikeActivity im
 > Autorun-Modus und schreibt die Ergebniszeilen nach `abnahme-ergebnis.txt`.
@@ -93,6 +121,16 @@ Ende anhören (≈ 1:45 min), dabei aufs Highlight achten.
 - [ ] Wort-Highlight läuft sichtbar mit
 - [ ] **Kein Drift am Kapitelende** (letztes Wort leuchtet, während es gesprochen wird)
 - Ergebnis/Auffälligkeiten: ______________________________________________
+
+Die rechnerische Seite ist im Emulator bereits belegt (0 ms Abweichung über
+424 Samples). Was hier zu prüfen bleibt, ist alles, was der Rechner nicht
+messen kann: Ruckeln auf schwacher Hardware und der Sitz des Highlights zum
+*gehörten* Ton. Automatisierte Gegenprobe auf dem Gerät:
+```
+adb shell am start -n de.lesefuchs.spike/.MainActivity --ez selfcheck true
+adb logcat -d -s LesefuchsSpike | findstr key=sync
+```
+- Sync-Zeile vom Fire Tablet: ____________________________________________
 
 ## 4 · Lead-Offset kalibrieren
 

@@ -22,6 +22,9 @@ param(
     [string]$ExpectedText,
     [string]$Package,
     [switch]$SkipInstall,
+    [switch]$SkipSync,
+    [int]$SyncChapter = 0,
+    [int]$SyncTimeoutSeconds = 240,
     [int]$TimeoutSeconds = 240
 )
 
@@ -120,7 +123,28 @@ while ((Get-Date) -lt $deadline) {
 }
 Write-Host ""
 
-$results = $lines | Select-String -Pattern 'SPIKE_RESULT .*' | ForEach-Object { $_.Matches[0].Value }
+$results = @($lines | Select-String -Pattern 'SPIKE_RESULT .*' | ForEach-Object { $_.Matches[0].Value })
+
+# --- 4 · Sync-Selbstpruefung (spielt Kapitel 1 in Echtzeit) ----------------
+if (-not $SkipSync) {
+    Step "4 - Highlight-Synchronitaet (Kapitel $SyncChapter, Echtzeit ~2 min)"
+    & $Adb -s $serial shell am force-stop $appId | Out-Null
+    & $Adb -s $serial shell am start -n "$appId/.MainActivity" `
+        --ez selfcheck true --ei selfcheck_chapter $SyncChapter | Out-Null
+    Write-Host "  laeuft" -NoNewline
+    $syncDeadline = (Get-Date).AddSeconds($SyncTimeoutSeconds)
+    while ((Get-Date) -lt $syncDeadline) {
+        Start-Sleep -Seconds 10
+        Write-Host "." -NoNewline
+        $syncLines = & $Adb -s $serial logcat -d -s LesefuchsSpike
+        if ($syncLines -match 'key=sync') { break }
+    }
+    Write-Host ""
+    $lines = & $Adb -s $serial logcat -d -s LesefuchsSpike
+    $results = @($lines | Select-String -Pattern 'SPIKE_RESULT .*' | ForEach-Object { $_.Matches[0].Value })
+    $lines | Select-String -Pattern 'SYNC_MISMATCH .*' | ForEach-Object { Warn $_.Matches[0].Value }
+}
+
 if (-not $results) {
     Fail "Keine SPIKE_RESULT-Zeilen im Logcat. Vollstaendiges Log:"
     $lines | Select-Object -Last 40 | ForEach-Object { Write-Host "    $_" }
@@ -142,9 +166,13 @@ Ok "Protokoll: $reportPath"
 
 Write-Host ""
 Write-Host "Naechste Schritte (manuell, siehe ABNAHME.md):" -ForegroundColor Cyan
-Write-Host "  3 - App oeffnen, Kapitel 1 vollstaendig hoeren, Highlight+Drift pruefen"
-Write-Host "  4 - Lead-Offset kalibrieren und in README.md eintragen"
-Write-Host "  5 - Wort-Tap-Seek pruefen"
+Write-Host "  3 - App oeffnen, Kapitel 1 hoeren: Ruckeln? Highlight sichtbar synchron?"
+Write-Host "  4 - Lead-Offset kalibrieren und in README.md eintragen (geraetespezifisch)"
+Write-Host "  5 - Wort-Tap-Seek antippen und hoeren"
 Write-Host "  6 - Kind draufschauen lassen"
+if ($isEmulator) {
+    Write-Host ""
+    Write-Host "EMULATOR: 3-6 hier nur eingeschraenkt aussagekraeftig - Abnahme am Fire Tablet." -ForegroundColor Yellow
+}
 
 if ($results -match 'status=FAIL') { exit 1 } else { exit 0 }
