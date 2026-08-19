@@ -190,7 +190,14 @@ private fun buildParagraph(tokens: List<Token>, activeTokenI: Int, activeSentI: 
             pushStringAnnotation("token", token.i.toString())
             if (style != null) withStyle(style) { append(token.w) } else append(token.w)
             pop()
-            if (idx != tokens.lastIndex) append(" ")
+            if (idx != tokens.lastIndex) {
+                // Das Leerzeichen gehört zum Satz-Hintergrund, sonst wirkt das
+                // Satz-Highlight gestreift statt als durchgehender Balken.
+                val next = tokens[idx + 1]
+                val bothInSentence = token.sent == activeSentI && next.sent == activeSentI
+                if (bothInSentence) withStyle(SpanStyle(background = SentenceBg)) { append(" ") }
+                else append(" ")
+            }
         }
     }
 

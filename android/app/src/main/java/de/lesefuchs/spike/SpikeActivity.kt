@@ -316,9 +316,15 @@ class SpikeActivity : ComponentActivity() {
                 "detail" to "${t::class.simpleName}:${t.message}", "mode_before" to before)
             return
         }
+        // Ohne Device-Owner blendet Android einen Bestätigungsdialog ein; der
+        // Modus wechselt erst danach. Kurz nachfassen, sonst misst man nur die
+        // Verzögerung. Bleibt er NONE, ist entweder Pinning gesperrt ODER der
+        // Dialog wartet auf eine Bestätigung, die im Autorun niemand gibt.
+        Thread.sleep(1500)
         val after = am.lockTaskModeState
         if (after == ActivityManager.LOCK_TASK_MODE_NONE) {
-            spikeResult("locktask", false, "reason" to "not_allowed",
+            spikeResult("locktask", false, "reason" to "not_active",
+                "hint" to "kein_device_owner:Bestaetigungsdialog_oder_gesperrt",
                 "mode_before" to before, "mode_after" to after)
             return
         }
