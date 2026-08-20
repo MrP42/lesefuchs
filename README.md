@@ -66,12 +66,24 @@ Releases-Seite öffnen, neue APK laden, installieren. Die Installation
 
 ## Inhalte aufs Tablet bringen
 
-Fertige `.lesepaket`-Dateien in einen der beiden Ordner legen — die App nimmt
-beim Start die erste gefundene Datei:
+**Am einfachsten direkt in der App** — kein PC, keine Zusatzberechtigung:
+
+- **„Beispielgeschichte laden"** holt eine fertige Geschichte aus dem
+  aktuellen Release.
+- **„Datei öffnen …"** übernimmt eine `.lesepaket`-Datei, die schon auf dem
+  Tablet liegt — etwa nach einem Download im Browser. Der Systemdialog regelt
+  den Zugriff, es sind keine Dateirechte nötig.
+
+Beides landet im app-eigenen Ordner und steht sofort im Player.
+
+**Für viele Inhalte oder vom PC aus** sucht die App zusätzlich in dieser
+Reihenfolge:
 
 ```
+<App-Ordner>/inbox/                                    (Import, s. o.)
+/sdcard/Android/data/de.lesefuchs.spike/files/inbox/   (adb push, ohne Rechte)
 /sdcard/Lesefuchs/inbox/                               (braucht Dateizugriff)
-/sdcard/Android/data/de.lesefuchs.spike/files/inbox/   (ohne Zusatzrechte)
+/sdcard/Download/                                      (braucht Dateizugriff)
 ```
 
 Übertragen per USB (MTP), microSD oder `adb push`.

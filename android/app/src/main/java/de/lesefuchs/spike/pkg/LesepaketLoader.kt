@@ -11,8 +11,10 @@ import java.util.zip.ZipFile
  * Lädt das erste .lesepaket aus der Inbox (kein UI, Spike-Umfang).
  *
  * Suchreihenfolge:
- *   1. /sdcard/Lesefuchs/inbox/            (braucht All-Files-Access, README)
+ *   1. filesDir/inbox/                     (App-eigen: „Beispiel laden"/Import)
  *   2. /sdcard/Android/data/<pkg>/files/inbox/   (adb push ohne Freigabe)
+ *   3. /sdcard/Lesefuchs/inbox/            (braucht All-Files-Access)
+ *   4. /sdcard/Download/                   (Browser-Download, braucht Zugriff)
  *
  * Das ZIP wird nach cacheDir/paket/<name> entpackt (Media3 braucht Dateien).
  */
@@ -20,14 +22,29 @@ class LesepaketLoader(private val context: Context) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * Suchorte in dieser Reihenfolge. Der erste ist der einzige, der ohne
+     * jede Berechtigung und ohne PC befüllt werden kann — dorthin legen die
+     * Schaltflächen „Beispiel laden" und „Datei öffnen" ihre Pakete.
+     */
     fun inboxDirs(): List<File> = listOf(
-        File(Environment.getExternalStorageDirectory(), "Lesefuchs/inbox"),
+        File(context.filesDir, "inbox"),
         File(context.getExternalFilesDir(null), "inbox"),
+        File(Environment.getExternalStorageDirectory(), "Lesefuchs/inbox"),
+        File(Environment.getExternalStorageDirectory(), "Download"),
     )
 
+    /** Zielordner für Importe (immer beschreibbar). */
+    fun importDir(): File = File(context.filesDir, "inbox").apply { mkdirs() }
+
+    /** Erster Ordner der Suchreihenfolge, der ein Paket enthält, gewinnt. */
     fun findFirstPackage(): File? = inboxDirs()
-        .flatMap { dir -> dir.listFiles { f -> f.extension == "lesepaket" }?.toList() ?: emptyList() }
-        .minByOrNull { it.name }
+        .asSequence()
+        .mapNotNull { dir ->
+            dir.listFiles { f -> f.extension == "lesepaket" }?.toList()
+                ?.takeIf { it.isNotEmpty() }?.minByOrNull { it.name }
+        }
+        .firstOrNull()
 
     fun load(zipFile: File): Lesepaket {
         val target = File(context.cacheDir, "paket/${zipFile.nameWithoutExtension}")

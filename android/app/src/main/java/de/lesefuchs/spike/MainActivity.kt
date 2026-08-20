@@ -5,7 +5,9 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,9 +24,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import de.lesefuchs.spike.pkg.ContentFetcher
 import de.lesefuchs.spike.pkg.Lesepaket
 import de.lesefuchs.spike.pkg.LesepaketLoader
 import de.lesefuchs.spike.sync.SyncSelfCheck
+import de.lesefuchs.spike.ui.EmptyState
 import de.lesefuchs.spike.ui.PlayerScreen
 import de.lesefuchs.spike.ui.UpdateBanner
 import de.lesefuchs.spike.update.UpdateChecker
@@ -44,6 +48,8 @@ class MainActivity : ComponentActivity() {
     private var paket by mutableStateOf<Lesepaket?>(null)
     private var update by mutableStateOf<UpdateChecker.Available?>(null)
     private var updateProgress by mutableStateOf<Float?>(null)
+    private var busy by mutableStateOf(false)
+    private var contentProgress by mutableStateOf<Float?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,9 +78,19 @@ class MainActivity : ComponentActivity() {
                             startActivity(Intent(this@MainActivity, SpikeActivity::class.java))
                         })
                     } else {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(status, Modifier.padding(32.dp))
-                        }
+                        val picker = rememberLauncherForActivityResult(
+                            ActivityResultContracts.OpenDocument()
+                        ) { uri -> if (uri != null) importPackage(uri) }
+                        EmptyState(
+                            message = status,
+                            busy = busy,
+                            progress = contentProgress,
+                            onLoadDemo = { loadDemo() },
+                            onPickFile = {
+                                // Kein MIME-Typ fuer .lesepaket registriert -> alles zulassen
+                                picker.launch(arrayOf("*/*"))
+                            },
+                        )
                     }
                 }
             }
@@ -173,6 +189,48 @@ class MainActivity : ComponentActivity() {
             status = "Selbstprüfung fertig."
             delay(500)
             finish()
+        }
+    }
+
+    /** Laedt die Beispielgeschichte aus dem GitHub-Release (ohne PC, ohne Rechte). */
+    private fun loadDemo() {
+        busy = true
+        contentProgress = 0f
+        status = "Beispielgeschichte wird geladen …"
+        lifecycleScope.launch {
+            val file = withContext(Dispatchers.IO) {
+                ContentFetcher.fetchDemo(this@MainActivity) { p ->
+                    runOnUiThread { contentProgress = p }
+                }
+            }
+            openOrReport(file, "Beispiel konnte nicht geladen werden — Internetverbindung prüfen.")
+        }
+    }
+
+    /** Uebernimmt ein .lesepaket aus dem System-Dateidialog. */
+    private fun importPackage(uri: android.net.Uri) {
+        busy = true
+        contentProgress = null
+        status = "Datei wird übernommen …"
+        lifecycleScope.launch {
+            val file = withContext(Dispatchers.IO) { ContentFetcher.importFrom(this@MainActivity, uri) }
+            openOrReport(file, "Diese Datei ließ sich nicht öffnen. Es muss eine .lesepaket-Datei sein.")
+        }
+    }
+
+    private suspend fun openOrReport(file: java.io.File?, fehler: String) {
+        val geladen = file?.let {
+            withContext(Dispatchers.IO) {
+                runCatching { LesepaketLoader(this@MainActivity).load(it) }.getOrNull()
+            }
+        }
+        busy = false
+        contentProgress = null
+        if (geladen != null) {
+            paket = geladen
+        } else {
+            file?.delete()
+            status = fehler
         }
     }
 
