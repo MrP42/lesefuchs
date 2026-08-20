@@ -112,7 +112,7 @@ object ContentFetcher {
     internal fun safeFileName(raw: String?): String {
         val base = (raw ?: "")
             .substringAfterLast('/')
-            .substringAfterLast('\')
+            .substringAfterLast('\\')
             .replace(Regex("[^A-Za-z0-9._-]"), "_")
             .trimStart('.')
             .take(120)
