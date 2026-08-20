@@ -6,18 +6,20 @@ nur `arm64-v8a`, keine GMS-Abhängigkeiten.
 
 ## Bauen
 
-Toolchain liegt lokal unter `C:\Users\wolff\tools\` (Temurin JDK 17.0.12,
-Gradle 8.9, Android SDK 34 + Build-Tools 34.0.0 in `tools\android\sdk`;
-`local.properties` zeigt darauf). Build:
+Gebraucht werden **JDK 17** (z. B. Temurin 17.0.12) und das **Android SDK 34**
+mit Build-Tools 34.0.0 — per Android Studio oder als reine
+Kommandozeilen-Installation. Die Datei `local.properties` (nicht im Repo)
+muss auf das SDK zeigen. Build:
 
 ```
-set JAVA_HOME=C:\Users\wolff\tools\jdk-17.0.12+7
+set JAVA_HOME=<Pfad zum JDK 17>
 cd android && gradlew.bat :app:assembleDebug
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk` — **77,4 MB**, ausschließlich
-`lib/arm64-v8a/` (größte Posten: onnxruntime 21,7 MB, ML-Kit-OCR-Modell
-11,1 MB, sherpa-onnx 9,7 MB).
+APK: `app/build/outputs/apk/debug/app-debug.apk` — **rund 146 MB**,
+ausschließlich `lib/arm64-v8a/`. Größte Posten: Piper-Sprachmodell 63 MB,
+onnxruntime 21,7 MB, espeak-Daten 18 MB, ML-Kit-Texterkennung 11,1 MB,
+sherpa-onnx 9,7 MB.
 
 **sherpa-onnx:** gepinntes AAR **v1.13.6** aus den GitHub-Releases in
 `android/libs/sherpa-onnx-1.13.6.aar` (kein Maven-Artefakt), eingebunden über

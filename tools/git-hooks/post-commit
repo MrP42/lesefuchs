@@ -1,0 +1,24 @@
+#!/bin/sh
+# Lesefuchs — automatische Sicherung: pusht nach jedem Commit zum Remote.
+#
+# Aktivieren (einmalig je Arbeitskopie):
+#     git config core.hooksPath tools/git-hooks
+#
+# Der Push läuft im Hintergrund, damit ein langsames oder fehlendes Netz das
+# Committen nicht aufhält. Ergebnis steht in .git/autopush.log.
+
+git remote get-url origin >/dev/null 2>&1 || exit 0
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+gitdir=$(git rev-parse --git-dir)
+
+{
+    printf '\n[%s] push %s -> origin\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$branch"
+    if git push origin "$branch" 2>&1; then
+        printf '[ok]\n'
+    else
+        printf '[FEHLER] Sicherung fehlgeschlagen — spaeter "git push" nachholen.\n'
+    fi
+} >> "$gitdir/autopush.log" 2>&1 &
+
+exit 0
