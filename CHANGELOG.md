@@ -6,11 +6,7 @@ Die App-Version im APK (`versionName`) entspricht der jeweiligen Marke hier.
 
 ## [Unveröffentlicht]
 
-### Hinzugefügt
-- Vollständiges Repository mit README, Versionshistorie und Anleitungen zu
-  Installation und Aktualisierung; automatische Sicherung nach GitHub.
-- Installation und Update direkt vom Tablet über GitHub Releases
-  (Konzept §8.3).
+Noch keine Änderungen seit 0.1.0.
 
 ---
 
@@ -60,6 +56,18 @@ wortgenauen Zeiten, und ein Tablet spielt es mit mitlaufendem Highlight ab.
 - Nur `arm64-v8a`, `minSdk 28`, keine Google-Play-Dienste als Abhängigkeit.
 - Abnahme-Werkzeuge: `abnahme.ps1` und `ABNAHME.md` für den Gerätetest.
 
+### Verteilung
+
+- Repository unter https://github.com/MrP42/lesefuchs mit Anleitungen zu
+  Installation, Aktualisierung und Release; jeder Commit wird automatisch
+  gesichert.
+- **Installation und Update direkt vom Tablet** über GitHub Releases
+  (Konzept §8.3): Die App vergleicht beim Start ihre Version mit dem neuesten
+  Release, lädt die neue Fassung herunter und öffnet den Installationsdialog.
+  Abschaltbar; ohne diese Prüfung nutzt die App kein Netz.
+- Signierte Release-Builds über GitHub Actions (Tag `v*`), Sprachmodell wird
+  im Lauf nachgeladen.
+
 ### Gemessen
 
 - Demo-Paket: 2 Kapitel, 611 Wörter, 951 Silben, 247 s Audio, 726 KiB.
@@ -67,6 +75,9 @@ wortgenauen Zeiten, und ein Tablet spielt es mit mitlaufendem Highlight ab.
 - Synchronität im Emulator: 424 Messpunkte über ein ganzes Kapitel,
   maximale Abweichung 0 ms, keine Fehltreffer.
 - Texterkennung auf der Testseite: 99,6 % Zeichengenauigkeit.
+- Aktualisierung Ende-zu-Ende geprüft: Version 0.0.9 erkennt Release 0.1.0,
+  lädt 132 MB und öffnet den Installationsdialog; die signierte Release-APK
+  installiert sich sauber.
 
 ### Korrigiert
 
