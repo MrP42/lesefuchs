@@ -1,0 +1,69 @@
+name: Stimmen bereitstellen
+
+# Einmalig (oder bei Bedarf) ausfuehren: laedt die deutschen Piper-Stimmen,
+# packt sie App-tauglich als ZIP um und legt sie in ein eigenes Release.
+#
+# Warum: Die Originale sind .tar.bz2 -- Android kann nur ZIP entpacken. Und
+# die espeak-Sprachdaten (18 MB) stecken bereits im APK, muessen also nicht
+# je Stimme mitgeliefert werden. Pro Stimme bleiben so ~45 MB statt ~64 MB.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release-Tag fuer die Stimmen'
+        required: true
+        default: 'stimmen-v1'
+
+permissions:
+  contents: write
+
+jobs:
+  stimmen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stimmen holen und umpacken
+        run: |
+          set -euo pipefail
+          BASE=https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models
+          mkdir -p out
+          # id:quelle  -- id ist der Schluessel in der App-Registry
+          VOICES="
+          eva_k:vits-piper-de_DE-eva_k-x_low
+          kerstin:vits-piper-de_DE-kerstin-low
+          ramona:vits-piper-de_DE-ramona-low
+          karlsson:vits-piper-de_DE-karlsson-low
+          pavoque:vits-piper-de_DE-pavoque-low
+          thorsten_low:vits-piper-de_DE-thorsten-low
+          thorsten_emotional:vits-piper-de_DE-thorsten_emotional-medium
+          miro:vits-piper-de_DE-miro-high
+          dii:vits-piper-de_DE-dii-high
+          "
+          for eintrag in $VOICES; do
+            id="${eintrag%%:*}"; quelle="${eintrag##*:}"
+            echo "::group::$id ($quelle)"
+            curl -sSL -o v.tar.bz2 "$BASE/$quelle.tar.bz2"
+            tar xjf v.tar.bz2
+            mkdir -p pack
+            cp "$quelle"/*.onnx pack/model.onnx
+            cp "$quelle"/tokens.txt pack/tokens.txt
+            cp "$quelle"/MODEL_CARD pack/MODEL_CARD 2>/dev/null || true
+            (cd pack && zip -q -r "../out/stimme-$id.zip" .)
+            ls -lh "out/stimme-$id.zip"
+            rm -rf pack v.tar.bz2 "$quelle"
+            echo "::endgroup::"
+          done
+          ls -lh out/
+
+      - name: Release anlegen oder ergaenzen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          NOTES="Deutsche Piper-Stimmen, App-tauglich umgepackt (ZIP, ohne espeak-Daten -- die stecken im APK). Quelle: sherpa-onnx tts-models, Lizenzen siehe MODEL_CARD je Stimme."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/*.zip --clobber
+          else
+            gh release create "$TAG" out/*.zip --title "Stimmen" --notes "$NOTES"
+          fi
