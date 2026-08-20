@@ -51,6 +51,7 @@ jobs:
       - name: Piper-Sprachmodell holen
         # Liegt wegen seiner Groesse (78 MB) nicht im Repo -- siehe android/README.md
         run: |
+          mkdir -p android/app/src/main/assets   # Ordner ist im Repo leer/ignoriert
           cd android/app/src/main/assets
           curl -sSL -o piper.tar.bz2 \
             https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-de_DE-thorsten-medium.tar.bz2
