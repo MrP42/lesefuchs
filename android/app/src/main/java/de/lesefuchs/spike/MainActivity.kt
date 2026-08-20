@@ -31,9 +31,16 @@ import de.lesefuchs.spike.pkg.LesepaketLoader
 import de.lesefuchs.spike.sync.SyncSelfCheck
 import de.lesefuchs.spike.ui.EmptyState
 import de.lesefuchs.spike.ui.LibraryScreen
+import de.lesefuchs.spike.ui.LiveZustand
+import de.lesefuchs.spike.ui.VoiceScreen
+import de.lesefuchs.spike.ui.Vorlesequelle
 import de.lesefuchs.spike.ui.PlayerScreen
 import de.lesefuchs.spike.ui.UpdateBanner
 import de.lesefuchs.spike.update.UpdateChecker
+import de.lesefuchs.spike.voice.LiveSpeaker
+import de.lesefuchs.spike.voice.Voice
+import de.lesefuchs.spike.voice.VoiceManager
+import de.lesefuchs.spike.voice.VoiceRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,6 +59,14 @@ class MainActivity : ComponentActivity() {
     private var update by mutableStateOf<UpdateChecker.Available?>(null)
     private var updateProgress by mutableStateOf<Float?>(null)
     private var busy by mutableStateOf(false)
+    private var stimmenOffen by mutableStateOf(false)
+    private var stimme by mutableStateOf<Voice?>(null)
+    private var stimmeLaedt by mutableStateOf<String?>(null)
+    private var stimmeFortschritt by mutableStateOf<Float?>(null)
+    private var quelle by mutableStateOf(Vorlesequelle.AUFNAHME)
+    private var live by mutableStateOf(LiveZustand())
+    private var sprecher: LiveSpeaker? = null
+    private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var contentProgress by mutableStateOf<Float?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,8 +92,30 @@ class MainActivity : ComponentActivity() {
                     }
                     val p = paket
                     val spike = { startActivity(Intent(this@MainActivity, SpikeActivity::class.java)) }
-                    if (p != null) {
-                        PlayerScreen(p, exo, onBack = { paket = null }, onOpenSpike = spike)
+                    if (stimmenOffen) {
+                        VoiceScreen(
+                            stimmen = VoiceRegistry.alle,
+                            gewaehlt = (stimme ?: VoiceManager.gewaehlte(this@MainActivity)).id,
+                            bereit = { VoiceRegistry.istBereit(this@MainActivity, it) },
+                            ladend = stimmeLaedt,
+                            fortschritt = stimmeFortschritt,
+                            onWaehlen = { waehleStimme(it) },
+                            onZurueck = { stimmenOffen = false },
+                        )
+                    } else if (p != null) {
+                        PlayerScreen(
+                            paket = p,
+                            player = exo,
+                            stimmeName = (stimme ?: VoiceManager.gewaehlte(this@MainActivity)).name,
+                            quelle = quelle,
+                            live = live,
+                            onBack = { paket = null },
+                            onStimmeWaehlen = { stimmenOffen = true },
+                            onQuelleWechseln = { neu -> quelle = neu; stoppeLive(); exo.pause() },
+                            onLiveStart = { kapitel, abSatz -> starteLive(p, kapitel, abSatz) },
+                            onLiveStop = { stoppeLive() },
+                            onOpenSpike = spike,
+                        )
                     } else if (bibliothek.isNotEmpty()) {
                         val picker = rememberLauncherForActivityResult(
                             ActivityResultContracts.OpenDocument()
@@ -140,6 +177,95 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // ---- Stimmen ---------------------------------------------------------
+
+    /** Wählt eine Stimme; lädt sie bei Bedarf einmalig herunter. */
+    private fun waehleStimme(gewaehlt: Voice) {
+        if (VoiceRegistry.istBereit(this, gewaehlt)) {
+            VoiceManager.waehle(this, gewaehlt)
+            stimme = gewaehlt
+            stoppeLive()
+            sprecher?.freigeben(); sprecher = null
+            stimmenOffen = false
+            return
+        }
+        stimmeLaedt = gewaehlt.id
+        stimmeFortschritt = 0f
+        lifecycleScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                VoiceManager.installiere(this@MainActivity, gewaehlt) { p ->
+                    runOnUiThread { stimmeFortschritt = p }
+                }
+            }
+            stimmeLaedt = null
+            stimmeFortschritt = null
+            if (ok) {
+                VoiceManager.waehle(this@MainActivity, gewaehlt)
+                stimme = gewaehlt
+                sprecher?.freigeben(); sprecher = null
+                stimmenOffen = false
+            } else {
+                status = "Die Stimme ließ sich nicht laden — Internetverbindung prüfen."
+            }
+        }
+    }
+
+    /** Liest ab einem Satz mit der gewählten Stimme vor (Konzept §5.5). */
+    private fun starteLive(geladen: Lesepaket, kapitelIndex: Int, abSatz: Int) {
+        stoppeLive()
+        val kapitel = geladen.manifest.chapters.getOrNull(kapitelIndex) ?: return
+        val tokens = geladen.content.tokens.subList(kapitel.tokenStart, kapitel.tokenEnd + 1)
+        val saetze = geladen.content.sentences.filter { satz ->
+            satz.tokenStart >= kapitel.tokenStart && satz.tokenEnd <= kapitel.tokenEnd
+        }
+        val ab = saetze.indexOfFirst { it.i >= abSatz }.coerceAtLeast(0)
+        val zuSprechen = saetze.drop(ab)
+        if (zuSprechen.isEmpty()) return
+
+        val gewaehlt = stimme ?: VoiceManager.gewaehlte(this)
+        live = LiveZustand(laeuft = true, satzIndex = zuSprechen.first().i, tokenIndex = -1)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val sp = sprecher ?: LiveSpeaker(this@MainActivity).also { sprecher = it }
+            if (!sp.vorbereiten(gewaehlt)) {
+                runOnUiThread {
+                    live = LiveZustand()
+                    status = "Diese Stimme steht auf dem Gerät nicht bereit."
+                }
+                return@launch
+            }
+            val woerterJeSatz = zuSprechen.map { satz ->
+                geladen.content.tokens.subList(satz.tokenStart, satz.tokenEnd + 1).map { it.w }
+            }
+            sp.sprich(woerterJeSatz, tempo = 1.0f, callback = object : LiveSpeaker.Callback {
+                override fun onSentenceStart(index: Int, wortDauern: LongArray) {
+                    val satz = zuSprechen[index]
+                    runOnUiThread { live = live.copy(laeuft = true, satzIndex = satz.i) }
+                    // Wort-Highlight entlang der geschätzten Dauern mitlaufen lassen
+                    var offset = 0L
+                    wortDauern.forEachIndexed { i, dauer ->
+                        val tokenIndex = satz.tokenStart + i
+                        // Aus dem Hintergrund-Thread: Marken ueber den Haupt-Looper planen
+                        uiHandler.postDelayed({
+                            if (live.laeuft) live = live.copy(tokenIndex = tokenIndex)
+                        }, offset)
+                        offset += dauer
+                    }
+                }
+                override fun onFinished() { runOnUiThread { live = LiveZustand() } }
+                override fun onError(meldung: String) {
+                    runOnUiThread { live = LiveZustand(); status = "Vorlesen fehlgeschlagen: " + meldung }
+                }
+            })
+        }
+    }
+
+    private fun stoppeLive() {
+        sprecher?.stoppen()
+        uiHandler.removeCallbacksAndMessages(null)   // geplante Wortmarken verwerfen
+        live = LiveZustand()
     }
 
     /** Liest alle Pakete neu ein (Bibliothek). */
@@ -290,6 +416,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        sprecher?.freigeben()
+        sprecher = null
         player?.release()
         player = null
         super.onDestroy()

@@ -53,6 +53,18 @@ adb install -r lesefuchs-<version>.apk
 **Systemvoraussetzungen:** Fire OS 8 (Android 11) oder neuer, `arm64-v8a`,
 mindestens 3 GB RAM. Die App braucht keine Google-Dienste.
 
+## In der App
+
+- **Bücherregal** — alle Geschichten als Kacheln, ein Tipp öffnet sie.
+- **Vorlesen** — mit dem fertigen Audio des Pakets (wortgenaues Highlight)
+  oder live mit einer wählbaren Stimme.
+- **Elf Stimmen** — die Gerätestimme, die eingebaute Stimme und neun weitere
+  zum einmaligen Laden. Alle sprechen auf dem Gerät, nichts geht ins Netz.
+- **Antippen eines Wortes** springt an die Stelle (Aufnahme) bzw. liest ab
+  diesem Satz weiter (Stimme).
+- Bedienung bewusst mit wenigen großen Tasten; technische Einstellungen
+  liegen hinter dem Zahnrad für Eltern.
+
 ## Aktualisieren
 
 Die App prüft beim Start, ob unter *Releases* eine neuere Version liegt, und

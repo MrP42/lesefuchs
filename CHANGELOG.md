@@ -6,7 +6,36 @@ Die App-Version im APK (`versionName`) entspricht der jeweiligen Marke hier.
 
 ## [Unveröffentlicht]
 
-Noch keine Änderungen seit 0.1.1.
+Noch keine Änderungen seit 0.2.0.
+
+---
+
+## [0.2.0] — 2026-08-20 — Bücherregal, elf Stimmen, Vorlesen ohne Vorbereitung
+
+### Hinzugefügt
+- **Bücherregal**: Alle Geschichten erscheinen als große Kacheln mit Titel,
+  Kapitelzahl und Dauer; ein Tipp öffnet sie, „Regal" führt zurück. Bisher
+  wurde stumm die erste gefundene Datei geöffnet.
+- **Elf Stimmen zur Auswahl**: die Vorlesestimme des Geräts, die in der App
+  enthaltene Stimme (Thorsten) und neun weitere, die bei Bedarf einmalig
+  geladen werden (17–67 MB). Auswahl über große Kacheln mit Hörprobe-Namen
+  und Größenangabe.
+- **Vorlesen ohne vorbereitetes Audio**: Umschalter „Aufnahme ↔ Stimme".
+  Im Stimme-Modus liest die gewählte Stimme direkt vor — ohne Server, ohne
+  GPU, ohne Internet. Das Wort-Highlight läuft mit, die Wortdauern werden
+  dabei aus der Silbenzahl geschätzt (Konzept §5.5) und sind daher nicht
+  millisekundengenau wie bei einer Aufnahme.
+- Antippen eines Wortes lässt im Stimme-Modus ab diesem Satz weiterlesen.
+
+### Geändert
+- **Kindgerechte Bedienung**: wenige große Tasten (84 dp) mit Beschriftung,
+  Kapitel als große Zahlen, größere Schrift im Text. Technische Einstellungen
+  (Vorlauf des Highlights, Technik-Spike) stecken hinter einem unauffälligen
+  Zahnrad für Eltern statt in der Kinderansicht.
+
+### Infrastruktur
+- Eigenes Release `stimmen-v1` mit den Stimmen, App-tauglich als ZIP umgepackt
+  (die gemeinsamen Sprachdaten stecken im APK, das spart je Stimme ~19 MB).
 
 ---
 
