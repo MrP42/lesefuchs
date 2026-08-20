@@ -5,6 +5,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+// Version kommt aus dem Release-Workflow (-PlesefuchsVersion=…), lokal Standardwert.
+val appVersionName = (project.findProperty("lesefuchsVersion") as String?) ?: "0.1.0"
+val appVersionCode = (project.findProperty("lesefuchsVersionCode") as String?)?.toInt() ?: 1
+// Signaturschlüssel nur in CI gesetzt; lokal wird mit dem Debug-Schlüssel gebaut.
+val releaseKeystore = System.getenv("LESEFUCHS_KEYSTORE")
+
 android {
     namespace = "de.lesefuchs.spike"
     compileSdk = 34
@@ -13,17 +19,35 @@ android {
         applicationId = "de.lesefuchs.spike"
         minSdk = 28          // Fire OS 7 (Android 9)
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = appVersionCode
+        versionName = appVersionName
         ndk {
             // Fire Tablets: nur arm64 nötig — halbiert die APK-Größe (Konzept §2.2)
             abiFilters += "arm64-v8a"
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseKeystore != null) {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("LESEFUCHS_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LESEFUCHS_KEY_ALIAS")
+                keyPassword = System.getenv("LESEFUCHS_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Ohne Schlüssel (lokaler Build) mit Debug-Signatur, damit
+            // `assembleRelease` immer durchläuft.
+            signingConfig = if (releaseKeystore != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
     compileOptions {
@@ -35,6 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true   // VERSION_NAME für die Update-Prüfung
     }
 }
 
