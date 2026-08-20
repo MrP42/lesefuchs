@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +26,8 @@ import de.lesefuchs.spike.pkg.Lesepaket
 import de.lesefuchs.spike.pkg.LesepaketLoader
 import de.lesefuchs.spike.sync.SyncSelfCheck
 import de.lesefuchs.spike.ui.PlayerScreen
+import de.lesefuchs.spike.ui.UpdateBanner
+import de.lesefuchs.spike.update.UpdateChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -39,6 +42,8 @@ class MainActivity : ComponentActivity() {
     private var player: ExoPlayer? = null
     private var status by mutableStateOf("Suche .lesepaket …")
     private var paket by mutableStateOf<Lesepaket?>(null)
+    private var update by mutableStateOf<UpdateChecker.Available?>(null)
+    private var updateProgress by mutableStateOf<Float?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,18 +52,36 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                val p = paket
-                if (p != null) {
-                    PlayerScreen(p, exo, onOpenSpike = {
-                        startActivity(Intent(this, SpikeActivity::class.java))
-                    })
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(status, Modifier.padding(32.dp))
+                Column(Modifier.fillMaxSize()) {
+                    update?.let { verfuegbar ->
+                        UpdateBanner(
+                            version = verfuegbar.version,
+                            sizeBytes = verfuegbar.sizeBytes,
+                            progress = updateProgress,
+                            onInstall = { startUpdate(verfuegbar) },
+                            onLater = { update = null },
+                            onNever = {
+                                UpdateChecker.setEnabled(this@MainActivity, false)
+                                update = null
+                            },
+                        )
+                    }
+                    val p = paket
+                    if (p != null) {
+                        PlayerScreen(p, exo, onOpenSpike = {
+                            startActivity(Intent(this@MainActivity, SpikeActivity::class.java))
+                        })
+                    } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(status, Modifier.padding(32.dp))
+                        }
                     }
                 }
             }
         }
+
+        // Update-Prüfung nur, wenn nicht gerade eine Selbstprüfung läuft
+        if (!intent.getBooleanExtra("selfcheck", false)) checkForUpdate()
 
         lifecycleScope.launch {
             val loader = LesepaketLoader(this@MainActivity)
@@ -150,6 +173,32 @@ class MainActivity : ComponentActivity() {
             status = "Selbstprüfung fertig."
             delay(500)
             finish()
+        }
+    }
+
+    /** Fragt im Hintergrund die Releases-Seite ab (Konzept §8.3). */
+    private fun checkForUpdate() {
+        lifecycleScope.launch {
+            val found = withContext(Dispatchers.IO) { UpdateChecker.check(this@MainActivity) }
+            if (found != null) update = found
+        }
+    }
+
+    private fun startUpdate(available: UpdateChecker.Available) {
+        lifecycleScope.launch {
+            updateProgress = 0f
+            val apk = withContext(Dispatchers.IO) {
+                UpdateChecker.download(this@MainActivity, available) { p ->
+                    runOnUiThread { updateProgress = p }
+                }
+            }
+            updateProgress = null
+            if (apk != null) {
+                UpdateChecker.install(this@MainActivity, apk)
+            } else {
+                status = "Download fehlgeschlagen — bitte über die Releases-Seite laden."
+                update = null
+            }
         }
     }
 
