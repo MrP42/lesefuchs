@@ -1,6 +1,6 @@
 # Stand
 
-**Stichtag:** 19.08.2026 · **Version:** 0.1.0 (unveröffentlicht)
+**Stichtag:** 19.08.2026 · **Version:** 0.1.0 · **Repo:** https://github.com/MrP42/lesefuchs
 
 ## Etappen
 
