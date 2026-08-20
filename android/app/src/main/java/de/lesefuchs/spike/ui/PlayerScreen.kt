@@ -50,7 +50,12 @@ private val SentenceBg = Color(0xFFFFF3C4)
 private val WordBg = Color(0xFFFFB300)
 
 @Composable
-fun PlayerScreen(paket: Lesepaket, player: ExoPlayer, onOpenSpike: () -> Unit) {
+fun PlayerScreen(
+    paket: Lesepaket,
+    player: ExoPlayer,
+    onBack: () -> Unit,
+    onOpenSpike: () -> Unit,
+) {
     val andika = remember { FontFamily(Font(R.font.andika_regular)) }
     var chapterIndex by remember { mutableIntStateOf(0) }
     var leadOffsetMs by remember { mutableStateOf(-60f) }
@@ -105,6 +110,8 @@ fun PlayerScreen(paket: Lesepaket, player: ExoPlayer, onOpenSpike: () -> Unit) {
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { player.pause(); onBack() }) { Text("‹ Bücherregal") }
+            Spacer(Modifier.width(12.dp))
             Text(paket.manifest.title, style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.width(16.dp))
             paket.manifest.chapters.forEachIndexed { i, ch ->

@@ -37,6 +37,31 @@ class LesepaketLoader(private val context: Context) {
     /** Zielordner für Importe (immer beschreibbar). */
     fun importDir(): File = File(context.filesDir, "inbox").apply { mkdirs() }
 
+    /**
+     * Alle gefundenen Pakete mit ihren Metadaten — Grundlage der Bibliothek.
+     * Liest nur `manifest.json` aus dem ZIP, ohne es zu entpacken; auch bei
+     * vielen Geschichten bleibt der Start dadurch schnell.
+     */
+    fun listPackages(): List<LibraryEntry> {
+        val gesehen = mutableSetOf<String>()
+        return inboxDirs()
+            .flatMap { dir -> dir.listFiles { f -> f.extension == "lesepaket" }?.toList() ?: emptyList() }
+            .filter { gesehen.add(it.name) }   // gleicher Dateiname nur einmal
+            .mapNotNull { file ->
+                runCatching {
+                    ZipFile(file).use { zf ->
+                        val entry = zf.getEntry("manifest.json") ?: return@use null
+                        val manifest = json.decodeFromString<Manifest>(
+                            zf.getInputStream(entry).bufferedReader(Charsets.UTF_8).readText()
+                        )
+                        LibraryEntry(file, manifest)
+                    }
+                }.onFailure { Log.i(TAG, "Paket unlesbar: ${file.name} (${it.message})") }
+                    .getOrNull()
+            }
+            .sortedBy { it.manifest.title.lowercase() }
+    }
+
     /** Erster Ordner der Suchreihenfolge, der ein Paket enthält, gewinnt. */
     fun findFirstPackage(): File? = inboxDirs()
         .asSequence()

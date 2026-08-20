@@ -78,3 +78,12 @@ data class Lesepaket(
     val content: Content,
     val audioFiles: Map<String, java.io.File>, // chapterId -> Opus-Datei
 )
+
+/** Eintrag der Bibliothek: Datei plus Metadaten, ohne entpackten Inhalt. */
+data class LibraryEntry(
+    val file: java.io.File,
+    val manifest: Manifest,
+) {
+    val minutes: Int get() = ((manifest.durationMs + 30_000) / 60_000).toInt()
+    val sizeMb: Long get() = file.length() / 1_048_576
+}

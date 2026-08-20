@@ -26,9 +26,11 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import de.lesefuchs.spike.pkg.ContentFetcher
 import de.lesefuchs.spike.pkg.Lesepaket
+import de.lesefuchs.spike.pkg.LibraryEntry
 import de.lesefuchs.spike.pkg.LesepaketLoader
 import de.lesefuchs.spike.sync.SyncSelfCheck
 import de.lesefuchs.spike.ui.EmptyState
+import de.lesefuchs.spike.ui.LibraryScreen
 import de.lesefuchs.spike.ui.PlayerScreen
 import de.lesefuchs.spike.ui.UpdateBanner
 import de.lesefuchs.spike.update.UpdateChecker
@@ -46,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private var player: ExoPlayer? = null
     private var status by mutableStateOf("Suche .lesepaket …")
     private var paket by mutableStateOf<Lesepaket?>(null)
+    private var bibliothek by mutableStateOf<List<LibraryEntry>>(emptyList())
     private var update by mutableStateOf<UpdateChecker.Available?>(null)
     private var updateProgress by mutableStateOf<Float?>(null)
     private var busy by mutableStateOf(false)
@@ -73,10 +76,22 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     val p = paket
+                    val spike = { startActivity(Intent(this@MainActivity, SpikeActivity::class.java)) }
                     if (p != null) {
-                        PlayerScreen(p, exo, onOpenSpike = {
-                            startActivity(Intent(this@MainActivity, SpikeActivity::class.java))
-                        })
+                        PlayerScreen(p, exo, onBack = { paket = null }, onOpenSpike = spike)
+                    } else if (bibliothek.isNotEmpty()) {
+                        val picker = rememberLauncherForActivityResult(
+                            ActivityResultContracts.OpenDocument()
+                        ) { uri -> if (uri != null) importPackage(uri) }
+                        LibraryScreen(
+                            entries = bibliothek,
+                            busy = busy,
+                            progress = contentProgress,
+                            onOpen = { eintrag -> openEntry(eintrag) },
+                            onLoadDemo = { loadDemo() },
+                            onPickFile = { picker.launch(arrayOf("*/*")) },
+                            onOpenSpike = spike,
+                        )
                     } else {
                         val picker = rememberLauncherForActivityResult(
                             ActivityResultContracts.OpenDocument()
@@ -100,34 +115,50 @@ class MainActivity : ComponentActivity() {
         if (!intent.getBooleanExtra("selfcheck", false)) checkForUpdate()
 
         lifecycleScope.launch {
-            val loader = LesepaketLoader(this@MainActivity)
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val zip = loader.findFirstPackage()
-                        ?: error("Tippe unten auf „Beispielgeschichte laden“.")
-                    loader.load(zip)
-                }
-            }
-            result.fold(
-                onSuccess = { loaded ->
-                    paket = loaded
-                    if (intent.getBooleanExtra("selfcheck", false)) {
+            refreshLibrary()
+            if (intent.getBooleanExtra("selfcheck", false)) {
+                val erste = bibliothek.firstOrNull()
+                if (erste == null) {
+                    Log.i(TAG, "SPIKE_RESULT key=sync status=FAIL reason=no_package")
+                    finish()
+                } else {
+                    val geladen = withContext(Dispatchers.IO) {
+                        runCatching { LesepaketLoader(this@MainActivity).load(erste.file) }.getOrNull()
+                    }
+                    if (geladen == null) {
+                        Log.i(TAG, "SPIKE_RESULT key=sync status=FAIL reason=package_unreadable")
+                        finish()
+                    } else {
+                        paket = geladen
                         status = "Selbstprüfung läuft …"
                         runSyncSelfCheck(
-                            loaded, exo,
+                            geladen, exo,
                             chapterIndex = intent.getIntExtra("selfcheck_chapter", 0),
                             speed = intent.getFloatExtra("selfcheck_speed", 1.0f),
                         )
                     }
-                },
-                onFailure = {
-                    status = it.message ?: "Fehler beim Laden"
-                    if (intent.getBooleanExtra("selfcheck", false)) {
-                        Log.i(TAG, "SPIKE_RESULT key=sync status=FAIL reason=no_package")
-                        finish()
-                    }
-                },
-            )
+                }
+            }
+        }
+    }
+
+    /** Liest alle Pakete neu ein (Bibliothek). */
+    private suspend fun refreshLibrary() {
+        bibliothek = withContext(Dispatchers.IO) { LesepaketLoader(this@MainActivity).listPackages() }
+        if (bibliothek.isEmpty()) status = "Tippe unten auf „Beispielgeschichte laden“."
+    }
+
+    /** Öffnet eine Geschichte aus der Bibliothek. */
+    private fun openEntry(entry: LibraryEntry) {
+        busy = true
+        status = "„${entry.manifest.title}“ wird geöffnet …"
+        lifecycleScope.launch {
+            val geladen = withContext(Dispatchers.IO) {
+                runCatching { LesepaketLoader(this@MainActivity).load(entry.file) }.getOrNull()
+            }
+            busy = false
+            if (geladen != null) paket = geladen
+            else status = "Diese Geschichte ließ sich nicht öffnen."
         }
     }
 
@@ -224,7 +255,8 @@ class MainActivity : ComponentActivity() {
         busy = false
         contentProgress = null
         if (geladen != null) {
-            paket = geladen
+            refreshLibrary()
+            paket = geladen          // frisch geholte Geschichte gleich öffnen
         } else {
             file?.delete()
             status = fehler

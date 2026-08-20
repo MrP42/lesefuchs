@@ -117,9 +117,12 @@ jobs:
           Fortschritt. Aenderungen: siehe [CHANGELOG.md](../blob/main/CHANGELOG.md).
           TXT
           )
+          # Das Beispielpaket muss an JEDEM Release haengen: die App holt es
+          # ueber /releases/latest ("Beispielgeschichte laden").
+          DEMO=$(ls content/*.lesepaket 2>/dev/null | head -1)
+          echo "Beispielpaket: ${DEMO:-KEINES GEFUNDEN}"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${{ steps.apk.outputs.name }}" --clobber
+            gh release upload "$TAG" "${{ steps.apk.outputs.name }}" $DEMO --clobber
           else
-            gh release create "$TAG" "${{ steps.apk.outputs.name }}" \
-              --title "Lesefuchs $VERSION" --notes "$NOTES"
+            gh release create "$TAG" "${{ steps.apk.outputs.name }}" $DEMO \n              --title "Lesefuchs $VERSION" --notes "$NOTES"
           fi
