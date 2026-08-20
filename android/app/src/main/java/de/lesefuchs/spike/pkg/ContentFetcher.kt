@@ -67,8 +67,14 @@ object ContentFetcher {
 
     /** Kopiert eine über den Systemdialog gewählte Datei in den Import-Ordner. */
     fun importFrom(context: Context, uri: Uri): File? = try {
-        val name = displayName(context, uri) ?: "import.lesepaket"
-        val target = File(LesepaketLoader(context).importDir(), name)
+        // Der Anzeigename kommt von einer fremden App und darf nicht als Pfad
+        // wirken ("../" o. Ä.) -> auf einen harmlosen Dateinamen reduzieren.
+        val name = safeFileName(displayName(context, uri))
+        val dir = LesepaketLoader(context).importDir()
+        val target = File(dir, name)
+        require(target.canonicalPath.startsWith(dir.canonicalPath + File.separator)) {
+            "Unzulaessiger Dateiname"
+        }
         context.contentResolver.openInputStream(uri)?.use { input ->
             target.outputStream().use { input.copyTo(it) }
         } ?: error("Datei nicht lesbar")
@@ -100,6 +106,18 @@ object ContentFetcher {
                 }
             }
         } finally { conn.disconnect() }
+    }
+
+    /** Nur Basisname, nur unverfaengliche Zeichen, immer Endung .lesepaket. */
+    internal fun safeFileName(raw: String?): String {
+        val base = (raw ?: "")
+            .substringAfterLast('/')
+            .substringAfterLast('\')
+            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+            .trimStart('.')
+            .take(120)
+        val stem = base.removeSuffix(".lesepaket").ifBlank { "import" }
+        return "$stem.lesepaket"
     }
 
     private fun displayName(context: Context, uri: Uri): String? =

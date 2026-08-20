@@ -104,10 +104,7 @@ class MainActivity : ComponentActivity() {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     val zip = loader.findFirstPackage()
-                        ?: error(
-                            "Kein Paket gefunden. Ablegen unter:\n" +
-                                loader.inboxDirs().joinToString("\n") { it.absolutePath }
-                        )
+                        ?: error("Tippe unten auf „Beispielgeschichte laden“.")
                     loader.load(zip)
                 }
             }

@@ -6,7 +6,33 @@ Die App-Version im APK (`versionName`) entspricht der jeweiligen Marke hier.
 
 ## [Unveröffentlicht]
 
-Noch keine Änderungen seit 0.1.0.
+Noch keine Änderungen seit 0.1.1.
+
+---
+
+## [0.1.1] — 2026-08-20 — Inhalte ohne PC
+
+Nach der ersten Installation auf einem echten Fire Tablet zeigte sich: Die App
+lief, blieb aber leer — an die Inbox-Ordner kommt man ohne PC praktisch nicht
+heran. Zwei neue Wege beheben das.
+
+### Hinzugefügt
+- **„Beispielgeschichte laden"** holt eine fertige Geschichte aus dem
+  aktuellen Release — ein Fingertipp, ohne PC und ohne Zusatzberechtigung.
+- **„Datei öffnen …"** übernimmt ein `.lesepaket` über den System-Dateidialog,
+  etwa nach einem Download im Browser. Auch hier sind keine Dateirechte nötig.
+- Die Suche nach Inhalten umfasst jetzt zusätzlich den app-eigenen
+  Import-Ordner und `/sdcard/Download`.
+- Das Demo-Paket hängt als Asset an jedem Release.
+
+### Geändert
+- Startbildschirm ohne Inhalte erklärt jetzt die nächsten Schritte, statt
+  Dateipfade aufzuzählen.
+
+### Sicherheit
+- Beim Datei-Import wird der von einer fremden App gelieferte Anzeigename auf
+  einen unverfänglichen Dateinamen reduziert und das Ziel gegen ein Ausbrechen
+  aus dem Import-Ordner geprüft.
 
 ---
 
