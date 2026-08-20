@@ -124,5 +124,5 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${{ steps.apk.outputs.name }}" $DEMO --clobber
           else
-            gh release create "$TAG" "${{ steps.apk.outputs.name }}" $DEMO \n              --title "Lesefuchs $VERSION" --notes "$NOTES"
+            gh release create "$TAG" "${{ steps.apk.outputs.name }}" $DEMO --title "Lesefuchs $VERSION" --notes "$NOTES"
           fi
